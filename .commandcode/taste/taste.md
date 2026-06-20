@@ -15,5 +15,9 @@
 # backend
 - Backend must be FastAPI, strictly async, using Pydantic V2 for validation. Confidence: 0.95
 
+# writing-style
+- Avoid em dashes in all written content; use commas, colons, or sentence breaks instead. Confidence: 0.70
+- Write all copy and documentation in a polished, human-written style — no AI-typical phrasing, no markdown artifacts in final output. Confidence: 0.70
+
 # frontend
 See [frontend/taste.md](frontend/taste.md)

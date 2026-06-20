@@ -5,7 +5,6 @@
 - Use backdrop-blur-md with bg-zinc-950/80 for UI panels overlapping maps. Confidence: 0.85
 - No accent colors — use strictly black, white, and zinc/slate grey. No emerald, rose, or any colored accents anywhere. Confidence: 0.85
 - Make all UI components (cards, panels, buttons) look premium and professional: refined borders (white/10-15 opacity), subtle backdrop blur, generous padding, no gimmicky animations or glowing effects. Confidence: 0.70
-- Do not build any hero section or landing page hero. Skip it entirely — go straight to the dashboard/map. Confidence: 0.85
 - Use Anthropic-style "Academic Premium" typography everywhere (whole website, including maps): bold compact sans-serif (Inter) for headlines, editorial serif (Lora/Georgia) for body/explainer text. Confidence: 0.85
 - No terminal/CLI-style elements in the UI (no curl snippets, no $ prompts, no monospaced code blocks in hero). Website-only, professional aesthetic. Confidence: 0.85
 - Use traffic-light severity color palette for map hotspots: yellow (light), orange (medium), red (heavy). Confidence: 0.75
@@ -14,5 +13,7 @@
 - Prefer animated gradient mesh + floating particles over video backgrounds for command-center UIs (instant load, works offline). Confidence: 0.30
 - For background animations, prefer Canvas-based rAF loops over DOM-based framer-motion for pixel-level effects (60fps, zero layout thrash). Use HTML5 canvas with requestAnimationFrame, sized via width/height attributes. Confidence: 0.75
 - Canvas backgrounds must be scoped to the hero/landing section only (not full-page), using absolute positioning and fade-out on scroll past the hero. Confidence: 0.70
+- No hero section — do not build landing/hero sections. Remove all hero-related components, canvas backgrounds, value props, CTAs, and stat cards from the main page. Confidence: 0.85
 - Dispatch notifications must be information-dense, Bloomberg-terminal style: no blinking, pulsing, truck animations, ETA countdowns, or status timelines. Confidence: 0.80
 - Use severity-specific icons for notifications: AlertTriangle (critical), AlertCircle (high), Info (normal). Confidence: 0.70
+- Use shadcn/ui components everywhere possible for all UI elements (buttons, cards, dialogs, tooltips, dropdowns). Confidence: 0.70
