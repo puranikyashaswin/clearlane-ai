@@ -30,3 +30,12 @@ Thumbs.db
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Large dataset — tracked via DATASET_URL env var for deployment
+/backend/*.csv
+
+# Planning / internal docs (local only, not for GitHub)
+/BUILD_PLAN.md
+/SUBMISSION.md
+
+.commandcode/

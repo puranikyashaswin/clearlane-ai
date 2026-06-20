@@ -83,6 +83,7 @@ interface AnalyticsPayload {
   heatmap_data: HeatmapCell[];
   is_forecast?: boolean;
   horizon?: PredictionHorizon;
+  scoped_hour?: number | null;
 }
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -254,31 +255,44 @@ export default function AnalyticsPage() {
     if (!data) return [];
     const raw = data.hourly_distribution;
     const key = chartMetric === "delay" ? "delay_mins" : "violations";
+    const smoothedKey = `${chartMetric}_smoothed`;
     if (key === "delay_mins" && raw.every((p) => p.delay_mins === 0)) {
       // Compute delay from violations as proxy
       return raw.map((p) => ({
         hour: p.hour,
         label: `${String(p.hour).padStart(2, "0")}:00`,
         [chartMetric]: p.violations * 3,
+        [smoothedKey]: p.violations * 3,
         trend: null,
         predicted: null,
       }));
     }
+    const rawValues = raw.map((p) => p[key]);
+    // Catmull-Rom interpolation — used ONLY for the smooth curve overlay
     const sourcePoints: InterpPoint[] = raw.map((p) => ({ x: p.hour, y: p[key] }));
     const dense = catmullRomInterpolate(sourcePoints, 8);
-    const vals = raw.map((p) => p[key]);
-    const trend = sma(vals, 3);
-    const trendForward = sma(vals, 4);
-    return dense.map((pt) => {
-      const hourIdx = Math.min(Math.floor(pt.x), raw.length - 1);
-      return {
-        hour: pt.x,
-        label: `${String(hourIdx).padStart(2, "0")}:00`,
-        [chartMetric]: pt.y,
-        trend: trend[hourIdx],
-        predicted: data.is_forecast ? (trendForward[hourIdx] ?? trend[hourIdx]) : trend[hourIdx],
-      };
-    });
+    // Sample the dense interpolation at each integer hour
+    const smoothMap = new Map<number, number>();
+    for (const pt of dense) {
+      const h = Math.round(pt.x);
+      if (h >= 0 && h < 24) {
+        // Closest dense point to each integer hour wins
+        if (!smoothMap.has(h) || Math.abs(pt.x - h) < 0.5) {
+          smoothMap.set(h, pt.y);
+        }
+      }
+    }
+    const trend = sma(rawValues, 3);
+    const trendForward = sma(rawValues, 4);
+    // Deterministic 24-point array — one entry per real hour
+    return raw.map((p, i) => ({
+      hour: p.hour,
+      label: `${String(p.hour).padStart(2, "0")}:00`,
+      [chartMetric]: p[key],                    // raw bar value
+      [smoothedKey]: smoothMap.get(p.hour) ?? p[key], // smoothed curve value
+      trend: trend[i],
+      predicted: data.is_forecast ? (trendForward[i] ?? trend[i]) : trend[i],
+    }));
   }, [data, chartMetric]);
 
   // Peak hour from unfiltered data for the ReferenceLine
@@ -529,7 +543,7 @@ export default function AnalyticsPage() {
                       <Bar dataKey={chartMetric} fill={COLORS.accent} opacity={0.5} radius={[2, 2, 0, 0]} />
                       {/* Peak hour vertical line */}
                       {globalPeakHour && (
-                        <ReferenceLine x={`${String(Math.floor(chartData.find(d => Math.round(d.hour) === globalPeakHour.hour)?.hour ?? globalPeakHour.hour)).padStart(2, "0")}:00`}
+                        <ReferenceLine x={`${String(chartData.find(d => d.hour === globalPeakHour.hour)?.hour ?? globalPeakHour.hour).padStart(2, "0")}:00`}
                           stroke={COLORS.danger} strokeDasharray="4 3" strokeWidth={1.5}
                           label={{
                             value: `Peak: ${String(globalPeakHour.hour).padStart(2, "0")}:00`,
@@ -538,8 +552,8 @@ export default function AnalyticsPage() {
                           }}
                         />
                       )}
-                      {/* Smooth area curve */}
-                      <Area type="monotone" dataKey={chartMetric} stroke={COLORS.accent} strokeWidth={1.5}
+                      {/* Smooth area curve — uses pre-smoothed values from Catmull-Rom */}
+                      <Area type="monotone" dataKey={`${chartMetric}_smoothed`} stroke={COLORS.accent} strokeWidth={1.5}
                         fill="url(#areaGradient)" dot={{ r: 2, fill: COLORS.accent, stroke: "none" }}
                         activeDot={{ r: 4, fill: COLORS.accent, stroke: COLORS.accentDeep, strokeWidth: 2 }} />
                       {/* Forecast trend line */}
@@ -553,7 +567,7 @@ export default function AnalyticsPage() {
 
               {/* Vehicle chart */}
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur-md" style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", padding: "24px" }}>
-                <PanelHeader icon={Car} label="Vehicle Breakdown" meta="Top 8 classes" />
+                <PanelHeader icon={Car} label="Vehicle Breakdown" meta={data.is_forecast && data.scoped_hour != null ? `Top 8 classes · ${String(data.scoped_hour).padStart(2, "0")}:00 forecast window` : "Top 8 classes"} />
                 <p className="-mt-2 mb-3 text-[10px] leading-relaxed text-zinc-600">{vehicleInsight}</p>
                 <div className="h-72 min-w-0 relative">
                   <ResponsiveContainer width="100%" height="100%">
@@ -584,7 +598,7 @@ export default function AnalyticsPage() {
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Junctions table */}
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur-md" style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", padding: "24px" }}>
-                <PanelHeader icon={MapPin} label="Top 10 Junctions" meta="Sorted by delay-cost" />
+                <PanelHeader icon={MapPin} label="Top 10 Junctions" meta={data.is_forecast && data.scoped_hour != null ? `Sorted by delay-cost · ${String(data.scoped_hour).padStart(2, "0")}:00 forecast window` : "Sorted by delay-cost"} />
                 <div ref={junctionsRef} className="scroll-thin -mx-2 mt-4 max-h-[420px] overflow-y-auto px-2">
                   <table className="w-full text-left font-mono text-xs tabular-nums">
                     <thead className="sticky top-0 bg-zinc-900/80 backdrop-blur-md">
@@ -880,10 +894,15 @@ function MonoTooltip({ active, payload, label, suffix }: MonoTooltipProps) {
 
 function ChartTooltip({ active, payload, label, metric }: MonoTooltipProps & { metric: string }) {
   if (!active || !payload || payload.length === 0) return null;
+  // Filter out the smoothed-area entry — bars already show "Actual" values
+  const visible = payload.filter(
+    (entry) => typeof entry.dataKey !== "string" || !entry.dataKey.endsWith("_smoothed"),
+  );
+  if (visible.length === 0) return null;
   return (
     <div className="rounded-md border border-zinc-800 bg-zinc-950/95 px-3 py-2 font-mono text-xs shadow-none backdrop-blur-md">
       <div className="text-[10px] uppercase tracking-wider text-zinc-500">{label ?? ""}</div>
-      {payload.map((entry, i) => {
+      {visible.map((entry, i) => {
         const val = typeof entry.value === "number" ? entry.value.toLocaleString("en-US") : String(entry.value ?? "");
         const name = entry.dataKey === metric ? "Actual" : entry.dataKey === "predicted" ? "Trend" : String(entry.dataKey ?? "");
         return (

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import polars as pl
 import h3
 import json
+import os
 from pathlib import Path
 import structlog
 from typing import Optional
@@ -59,6 +60,40 @@ except Exception as e:
 H3_RESOLUTION = 10
 CSV_FILENAME = "jan to may police violation_anonymized791b166.csv"
 
+
+def _ensure_csv() -> Path:
+    """Ensure the dataset CSV exists locally.
+
+    If the file is missing and the DATASET_URL environment variable is set,
+    download it at startup.  This lets Railway (or any other deployment)
+    provide the large CSV without tracking it in git.
+    """
+    csv_path = Path(__file__).parent / CSV_FILENAME
+    if csv_path.exists():
+        logger.info("csv_found_locally", path=str(csv_path))
+        return csv_path
+
+    dataset_url = os.environ.get("DATASET_URL")
+    if not dataset_url:
+        raise RuntimeError(
+            f"CSV not found at {csv_path} and $DATASET_URL is not set. "
+            "Either place the CSV at that path or set DATASET_URL so it "
+            "can be downloaded automatically."
+        )
+
+    logger.info("csv_not_found_downloading", url=dataset_url)
+    try:
+        import urllib.request
+        urllib.request.urlretrieve(dataset_url, csv_path)
+        size_mb = csv_path.stat().st_size / 1_000_000
+        logger.info("csv_downloaded", path=str(csv_path), size_mb=round(size_mb, 1))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to download CSV from $DATASET_URL: {exc}"
+        ) from exc
+
+    return csv_path
+
 SPACE_MAP = {
     "CAR": 12.0, "JEEP": 14.0, "PASSENGER AUTO": 6.0, "GOODS AUTO": 6.0,
     "MAXI-CAB": 10.0, "SCOOTER": 2.5, "MOTOR CYCLE": 2.5, "MOPED": 2.5,
@@ -75,16 +110,11 @@ SPACE_MAP = {
 _ANALYTICS_CACHE: dict[tuple[Optional[int], Optional[int], str], dict] = {}
 
 def find_csv() -> Path:
-    """Find CSV in current or parent directory."""
-    current_dir = Path(__file__).parent.resolve()
-    parent_dir = current_dir.parent
-    
-    if (current_dir / CSV_FILENAME).exists():
-        return current_dir / CSV_FILENAME
-    elif (parent_dir / CSV_FILENAME).exists():
-        return parent_dir / CSV_FILENAME
-    else:
-        raise FileNotFoundError(f"Could not find {CSV_FILENAME}")
+    """Return the path to the dataset CSV, ensuring it exists (downloads if needed)."""
+    return _ensure_csv()
+
+# Ensure CSV is available at startup — blocks boot if missing and no DATASET_URL
+_ensure_csv()
 
 def process_data(hour_filter: Optional[int] = None):
     """Process CSV and return aggregated data, optionally filtered by hour."""
@@ -412,13 +442,13 @@ def _build_analytics_payload(
         pl.col("parsed_dt").dt.weekday().alias("weekday"),
     )
 
-    # Apply day-of-week and hour-of-day filters before aggregation
+    # Apply day-of-week filter before ALL aggregations (shared scope)
     if day_filter is not None:
         df = df.filter(pl.col("weekday") == day_filter)
         logger.info("analytics_filtered_by_day", day=day_filter, rows=len(df))
-    if hour_filter is not None:
-        df = df.filter(pl.col("hour") == hour_filter)
-        logger.info("analytics_filtered_by_hour", hour=hour_filter, rows=len(df))
+
+    # Apply hour-of-day filter AFTER full-scope aggregates below
+    # so hourly_distribution and heatmap_data always span 24 hours / 7 days.
 
     df = df.with_columns(
         (pl.col("hour").is_between(8, 10) | pl.col("hour").is_between(17, 20)).alias("is_peak")
@@ -428,13 +458,14 @@ def _build_analytics_payload(
         .alias("vehicle_space_sqm")
     )
 
-    # Spatial aggregation first — single pass that drives delay-cost math
+    # Single H3 pass — shared by all scopes
     lats = df["latitude"].to_list()
     lngs = df["longitude"].to_list()
     h3_indices = [h3.latlng_to_cell(lat, lng, H3_RESOLUTION) for lat, lng in zip(lats, lngs)]
     df = df.with_columns(pl.Series("h3_index", h3_indices))
 
-    agg_df = df.group_by("h3_index").agg(
+    # ── Full-scope aggregation (all hours, all days) ─────────────────
+    full_agg_df = df.group_by("h3_index").agg(
         pl.len().alias("violation_count"),
         pl.sum("vehicle_space_sqm").alias("total_space_wasted"),
         pl.sum("is_peak").alias("peak_violations"),
@@ -448,16 +479,15 @@ def _build_analytics_payload(
         (pl.col("capacity_drop") * pl.col("peak_violations") * 15.0).alias("estimated_delay_mins")
     )
 
-    # 1) hourly_distribution: violations + delay per hour-of-day
+    # 1) hourly_distribution: violations + delay per hour-of-day (full 24-hour scope)
     hourly_rows = (
         df.group_by("hour")
         .agg(pl.len().alias("violations"))
         .sort("hour")
         .iter_rows(named=True)
     )
-    # Delay per hour: join per-row df to per-hex delay, sum by hour
     delay_per_hour_df = df.join(
-        agg_df.select(["h3_index", "estimated_delay_mins"]), on="h3_index"
+        full_agg_df.select(["h3_index", "estimated_delay_mins"]), on="h3_index"
     ).group_by("hour").agg(
         pl.sum("estimated_delay_mins").alias("delay_mins")
     ).sort("hour")
@@ -476,8 +506,32 @@ def _build_analytics_payload(
         })
     hourly_distribution.sort(key=lambda x: x["hour"])
 
+    # 4) heatmap_data: 7 days x 24 hours matrix (full scope)
+    heat_df = df.group_by(["weekday", "hour"]).agg(pl.len().alias("density"))
+    density_map: dict[tuple[int, int], int] = {
+        (int(r["weekday"]), int(r["hour"])): int(r["density"])
+        for r in heat_df.iter_rows(named=True)
+    }
+    heatmap_data = []
+    for wd in range(1, 8):
+        for h in range(24):
+            heatmap_data.append({
+                "day": WEEKDAY_LABELS[wd - 1],
+                "weekday": wd,
+                "hour": h,
+                "density": density_map.get((wd, h), 0),
+            })
+
+    # ── Hour-scoped aggregation (single hour when hour_filter is set) ─
+    # These are computed AFTER the full-scope aggregates above.
+    if hour_filter is not None:
+        df_scoped = df.filter(pl.col("hour") == hour_filter)
+        logger.info("analytics_scoped_by_hour", hour=hour_filter, rows=len(df_scoped))
+    else:
+        df_scoped = df
+
     # 2) vehicle_breakdown: count + space_wasted per vehicle_type
-    vehicle_df = df.group_by("vehicle_type").agg(
+    vehicle_df = df_scoped.group_by("vehicle_type").agg(
         pl.len().alias("count"),
         pl.sum("vehicle_space_sqm").alias("space_wasted"),
     ).sort("count", descending=True)
@@ -490,10 +544,18 @@ def _build_analytics_payload(
         for r in vehicle_df.iter_rows(named=True)
     ]
 
-    # 3) top_junctions: aggregate by junction_name, sum delay_cost (proxy = sum delay * violations),
-    #    take top 10 by delay_cost desc, excluding "No Junction"
+    # 3) top_junctions: scoped aggregat — top 10 by delay_cost, excluding "No Junction"
+    scoped_agg = df_scoped.group_by("h3_index").agg(
+        pl.len().alias("violation_count"),
+        pl.sum("vehicle_space_sqm").alias("total_space_wasted"),
+        pl.col("junction_name").mode().first().alias("primary_junction"),
+    ).with_columns(
+        (pl.col("total_space_wasted") / 1400.0).clip(0.0, 0.8).alias("capacity_drop")
+    ).with_columns(
+        (pl.col("capacity_drop") * pl.col("violation_count") * 15.0).alias("estimated_delay_mins")
+    )
     junction_df = (
-        agg_df
+        scoped_agg
         .with_columns((pl.col("estimated_delay_mins") * pl.col("violation_count")).alias("delay_cost"))
         .group_by("primary_junction")
         .agg(
@@ -513,21 +575,8 @@ def _build_analytics_payload(
         for r in junction_df.iter_rows(named=True)
     ]
 
-    # 4) heatmap_data: 7 days x 24 hours matrix (densities, fill missing with 0)
-    heat_df = df.group_by(["weekday", "hour"]).agg(pl.len().alias("density"))
-    density_map: dict[tuple[int, int], int] = {
-        (int(r["weekday"]), int(r["hour"])): int(r["density"])
-        for r in heat_df.iter_rows(named=True)
-    }
-    heatmap_data = []
-    for wd in range(1, 8):
-        for h in range(24):
-            heatmap_data.append({
-                "day": WEEKDAY_LABELS[wd - 1],
-                "weekday": wd,
-                "hour": h,
-                "density": density_map.get((wd, h), 0),
-            })
+    # The hour that scoped views (vehicle_breakdown, top_junctions) are filtered to
+    scoped_hour = hour_filter
 
     payload = {
         "hourly_distribution": hourly_distribution,
@@ -536,6 +585,7 @@ def _build_analytics_payload(
         "heatmap_data": heatmap_data,
         "is_forecast": horizon != "now",
         "horizon": horizon,
+        "scoped_hour": scoped_hour,
     }
     logger.info(
         "analytics_generated",
