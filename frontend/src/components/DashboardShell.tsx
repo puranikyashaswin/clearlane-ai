@@ -34,6 +34,7 @@ import {
 import Logo from "@/components/Logo";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { TimeSlider } from "@/components/TimeSlider";
+import { fetchHotspots, fetchStats } from "@/lib/api";
 import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import "mapbox-gl/dist/mapbox-gl.css" with { turbopackModuleType: "css" };
 
@@ -333,23 +334,22 @@ export function DashboardShell({
   }, [handleHorizonChange, handleHourChange]);
 
   useEffect(() => {
-    const url =
-      horizon === "now"
-        ? `http://127.0.0.1:8000/api/hotspots?hour=${selectedHour}`
-        : `http://127.0.0.1:8000/api/predict-horizon?hour=${selectedHour}&horizon=${encodeURIComponent(horizon)}`;
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((d: GeoJSON) => {
-        setData(d);
+    const load = async () => {
+      try {
+        const d = await fetchHotspots(selectedHour, horizon);
+        setData(d as unknown as GeoJSON);
         setDataLoadedAt(Date.now());
-      })
-      .catch((err) => console.error("Failed to fetch hotspots", err));
-
-    fetch(`http://127.0.0.1:8000/api/stats?hour=${selectedHour}`)
-      .then((res) => res.json())
-      .then(setStats)
-      .catch((err) => console.error("Failed to fetch stats", err));
+      } catch (err) {
+        console.error("Failed to fetch hotspots", err);
+      }
+      try {
+        const s = await fetchStats(selectedHour);
+        setStats(s);
+      } catch (err) {
+        console.error("Failed to fetch stats", err);
+      }
+    };
+    load();
   }, [selectedHour, horizon]);
 
   // rAF-driven clock. Replaces setInterval(1000) with a single frame-synced
@@ -571,13 +571,26 @@ export function DashboardShell({
 
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-2">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-500/40" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-cyan-500" />
-            </span>
-            <span className="text-xs uppercase tracking-wider text-zinc-400">
-              System Online
-            </span>
+            {process.env.NEXT_PUBLIC_DEMO_MODE === "true" ? (
+              <>
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-zinc-500" />
+                </span>
+                <span className="text-xs uppercase tracking-wider text-zinc-500">
+                  Demo Mode
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-500/40" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-cyan-500" />
+                </span>
+                <span className="text-xs uppercase tracking-wider text-zinc-400">
+                  System Online
+                </span>
+              </>
+            )}
           </span>
           <button
             type="button"

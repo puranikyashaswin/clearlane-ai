@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useCallback, useEffect, useMemo, useState, Fragment } from "react";
 import Link from "next/link";
 import {
   Area,
@@ -29,6 +29,7 @@ import {
 import { HorizonControl, type PredictionHorizon } from "@/components/HorizonControl";
 import Logo from "@/components/Logo";
 import { TimeSlider } from "@/components/TimeSlider";
+import { fetchAnalytics } from "@/lib/api";
 
 // --- Types matching /api/analytics ---
 interface HourlyPoint {
@@ -123,35 +124,25 @@ export default function AnalyticsPage() {
   const [dayFilter, setDayFilter] = useState<DayFilter>("all");
   const [chartMetric, setChartMetric] = useState<"violations" | "delay">("violations");
 
-  const buildAnalyticsUrl = (refresh: boolean): string => {
-    const params = new URLSearchParams();
-    if (refresh) params.set("refresh", "true");
-    params.set("hour", String(selectedHour));
-    params.set("horizon", horizon);
-    if (dayFilter !== "all") params.set("day", String(dayFilter));
-    return `http://127.0.0.1:8000/api/analytics?${params.toString()}`;
-  };
-
-  const load = (refresh = false) => {
-    fetch(buildAnalyticsUrl(refresh))
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((payload: AnalyticsPayload) => {
-        setData(payload);
-        setError(null);
-        setLoading(false);
-      })
-      .catch((err: Error) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  };
+  const load = useCallback(
+    (refresh = false) => {
+      setLoading(true);
+      fetchAnalytics(selectedHour, horizon, dayFilter, refresh)
+        .then((payload) => {
+          setData(payload);
+          setError(null);
+          setLoading(false);
+        })
+        .catch((err: Error) => {
+          setError(err.message);
+          setLoading(false);
+        });
+    },
+    [selectedHour, horizon, dayFilter],
+  );
 
   useEffect(() => {
     const trigger = (): void => {
-      setLoading(true);
       load(false);
     };
     Promise.resolve().then(trigger);

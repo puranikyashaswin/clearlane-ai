@@ -4,8 +4,8 @@
   "description": "Predictive parking enforcement command center for Bengaluru",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0A0F1D",
-  "theme_color": "#0A0F1D",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
   "icons": [
     {
       "src": "/logo.png",
