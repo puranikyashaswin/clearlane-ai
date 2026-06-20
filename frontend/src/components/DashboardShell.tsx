@@ -35,6 +35,7 @@ import Logo from "@/components/Logo";
 import { TimeSlider } from "@/components/TimeSlider";
 import { fetchHotspots, fetchStats } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
+import { RankedZoneList } from "@/components/RankedZoneList";
 import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import "mapbox-gl/dist/mapbox-gl.css" with { turbopackModuleType: "css" };
 
@@ -330,11 +331,23 @@ export function DashboardShell({
       const detail = (e as CustomEvent<number>).detail;
       handleHourChange(detail);
     };
+    const onPanTo = (e: Event): void => {
+      const { center } = (e as CustomEvent<{ center: [number, number] }>).detail;
+      setViewState((prev) => ({
+        ...prev,
+        longitude: center[0],
+        latitude: center[1],
+        zoom: 15,
+        transitionDuration: 800,
+      }));
+    };
     window.addEventListener("clearlane:horizon-change", onHorizon);
     window.addEventListener("clearlane:hour-change", onHour);
+    window.addEventListener("clearlane:pan-to-zone", onPanTo);
     return () => {
       window.removeEventListener("clearlane:horizon-change", onHorizon);
       window.removeEventListener("clearlane:hour-change", onHour);
+      window.removeEventListener("clearlane:pan-to-zone", onPanTo);
     };
   }, [handleHorizonChange, handleHourChange]);
 
@@ -709,6 +722,10 @@ export function DashboardShell({
             </p>
           )}
         </section>
+
+        <Divider />
+
+        <RankedZoneList />
 
         <Divider />
 

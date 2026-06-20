@@ -563,6 +563,115 @@ async def get_analytics(
     return JSONResponse(content=_ANALYTICS_CACHE[cache_key])
 
 
+# ---------------------------------------------------------------------------
+# Feature 2: Severity Ranking Endpoint
+# ---------------------------------------------------------------------------
+HEAVY_VEHICLES = {
+    "BUS (BMTC/KSRTC)", "PRIVATE BUS", "LORRY/GOODS VEHICLE", "HGV",
+    "LGV", "TANKER", "TOURIST BUS", "SCHOOL VEHICLE", "FACTORY BUS",
+    "TRACTOR", "MINI LORRY", "TEMPO",
+}
+
+@app.get("/api/severity-ranking")
+async def get_severity_ranking():
+    """Compute severity scores for all hexagons and return top 10 ranked."""
+    csv_path = find_csv()
+    df = pl.read_csv(csv_path, ignore_errors=True)
+    df = df.drop_nulls(subset=["latitude", "longitude"])
+
+    df = df.with_columns(
+        pl.col("created_datetime")
+        .str.slice(0, 19)
+        .str.to_datetime("%Y-%m-%d %H:%M:%S", strict=False)
+        .alias("parsed_dt")
+    ).drop_nulls(subset=["parsed_dt"]).with_columns(
+        pl.col("parsed_dt").dt.hour().alias("hour"),
+        pl.col("parsed_dt").dt.date().alias("date"),
+    )
+
+    # H3 spatial index
+    lats = df["latitude"].to_list()
+    lngs = df["longitude"].to_list()
+    h3_indices = [h3.latlng_to_cell(lat, lng, H3_RESOLUTION) for lat, lng in zip(lats, lngs)]
+    df = df.with_columns(pl.Series("h3_index", h3_indices))
+
+    # Per-hex computation
+    rankings = []
+    hex_groups = df.group_by("h3_index")
+    for hex_key, hex_df in hex_groups:
+        h3_key = hex_key[0] if isinstance(hex_key, tuple) else str(hex_key)
+        # Base violation count
+        V = len(hex_df)
+
+        # Multi-offence penalty: check if any row has 3+ offence_codes
+        multi_offence_penalty = 1.0
+        for raw in hex_df["offence_code"].to_list():
+            if raw:
+                try:
+                    codes = json.loads(raw) if isinstance(raw, str) else raw
+                    if isinstance(codes, list) and len(codes) >= 3:
+                        multi_offence_penalty = 1.5
+                        break
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        # Junction penalty
+        junction_penalty = 1.0
+        junction_mode = hex_df["junction_name"].mode().first()
+        if junction_mode and str(junction_mode).strip() not in ("No Junction", "", "None"):
+            junction_penalty = 1.4
+
+        # Heavy vehicle penalty
+        heavy_vehicle_penalty = 1.0
+        primary_vehicle = hex_df["vehicle_type"].mode().first()
+        if primary_vehicle and str(primary_vehicle) in HEAVY_VEHICLES:
+            heavy_vehicle_penalty = 1.2
+
+        # Recurring penalty: check if violations span 3+ different days
+        recurring_penalty = 1.0
+        unique_dates = hex_df["date"].unique().drop_nulls()
+        if len(unique_dates) >= 3:
+            recurring_penalty = 1.3
+
+        score = V * multi_offence_penalty * junction_penalty * heavy_vehicle_penalty * recurring_penalty
+
+        # Build badges
+        badges = []
+        if multi_offence_penalty > 1.0:
+            badges.append("Multi-Offence")
+        if junction_penalty > 1.0:
+            badges.append("Junction Risk")
+        if heavy_vehicle_penalty > 1.0:
+            badges.append("Heavy Vehicle")
+        if recurring_penalty > 1.0:
+            badges.append("Recurring")
+
+        # Location & station
+        place = hex_df["location"].fill_null("").str.split(",").list.first().mode().first()
+        place_name = str(place).strip() if place and str(place).strip() else None
+        station = hex_df["police_station"].mode().first()
+        police_station = str(station).strip() if station and str(station).strip() else "Unknown"
+
+        # Center
+        center_lat = float(hex_df["latitude"].mean())
+        center_lng = float(hex_df["longitude"].mean())
+
+        rankings.append({
+            "h3_index": h3_key,
+            "place_name": place_name or h3_key[:8],
+            "severity_score": round(score, 2),
+            "badges": badges,
+            "police_station": police_station,
+            "center": [center_lng, center_lat],
+        })
+
+    rankings.sort(key=lambda x: x["severity_score"], reverse=True)
+    for i, r in enumerate(rankings[:10], 1):
+        r["rank"] = i
+
+    return JSONResponse(content=rankings[:10])
+
+
 @app.get("/api/context-summary")
 async def get_context_summary():
     """Comprehensive data summary for the LLM chat context."""

@@ -1,0 +1,161 @@
+[
+  {
+    "h3_index": "8a61892e916ffff",
+    "place_name": "Kamaraj Road",
+    "severity_score": 11261.25,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "Shivajinagar",
+    "center": [
+      77.61024015355152,
+      12.981294997890908
+    ],
+    "rank": 1
+  },
+  {
+    "h3_index": "8a60145b5ca7fff",
+    "place_name": "3rd Cross Road",
+    "severity_score": 8837.01,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "Upparpet",
+    "center": [
+      77.57903361223354,
+      12.97323202282978
+    ],
+    "rank": 2
+  },
+  {
+    "h3_index": "8a60145b5987fff",
+    "place_name": "Mysore Road",
+    "severity_score": 8566.74,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "City Market",
+    "center": [
+      77.57633216408169,
+      12.964542577988535
+    ],
+    "rank": 3
+  },
+  {
+    "h3_index": "8a60145b5517fff",
+    "place_name": "6th Main Road",
+    "severity_score": 8304.66,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "Upparpet",
+    "center": [
+      77.57650009809336,
+      12.977263640236687
+    ],
+    "rank": 4
+  },
+  {
+    "h3_index": "8a60145b59a7fff",
+    "place_name": "KR Main Road",
+    "severity_score": 7728.63,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "City Market",
+    "center": [
+      77.57686206126141,
+      12.963827510774028
+    ],
+    "rank": 5
+  },
+  {
+    "h3_index": "8a61892e9357fff",
+    "place_name": "Meenakshi Koil Street",
+    "severity_score": 7480.2,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "Shivajinagar",
+    "center": [
+      77.60344073945254,
+      12.984074392554746
+    ],
+    "rank": 6
+  },
+  {
+    "h3_index": "8a60145b5537fff",
+    "place_name": "5th Main Road",
+    "severity_score": 7297.29,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "Upparpet",
+    "center": [
+      77.57731228750468,
+      12.976325933595213
+    ],
+    "rank": 7
+  },
+  {
+    "h3_index": "8a6189209207fff",
+    "place_name": "New Horizon College Road",
+    "severity_score": 7261.8,
+    "badges": [
+      "Multi-Offence",
+      "Recurring"
+    ],
+    "police_station": "HAL Old Airport",
+    "center": [
+      77.69104847701558,
+      12.933445361699286
+    ],
+    "rank": 8
+  },
+  {
+    "h3_index": "8a60145b551ffff",
+    "place_name": "Subedar Chatram Road",
+    "severity_score": 5787.6,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "Upparpet",
+    "center": [
+      77.57553391316037,
+      12.977562798632075
+    ],
+    "rank": 9
+  },
+  {
+    "h3_index": "8a60145b59b7fff",
+    "place_name": "Silver Jubilee Park Road",
+    "severity_score": 4703.79,
+    "badges": [
+      "Multi-Offence",
+      "Junction Risk",
+      "Recurring"
+    ],
+    "police_station": "City Market",
+    "center": [
+      77.57738859779943,
+      12.964463141067524
+    ],
+    "rank": 10
+  }
+]
