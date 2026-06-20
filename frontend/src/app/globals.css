@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-background: #09090b;
+  --color-foreground: #f4f4f5;
+}
+
+html,
+body {
+  background: #09090b;
+  color: #f4f4f5;
+  font-family: var(--font-sans);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Native range slider — flat zinc track + thumb, no glow */
+.custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #f4f4f5;
+  border: 1px solid #27272a;
+  transition: transform 0.1s ease;
+}
+.custom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+.custom-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #f4f4f5;
+  border: 1px solid #27272a;
+  transition: transform 0.1s ease;
+}
+.custom-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* Thin zinc scrollbar for panels */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
