@@ -1,0 +1,504 @@
+{
+  "total_violations": 298450,
+  "total_hotspots": 2534,
+  "total_estimated_delay_hours": 6906,
+  "police_stations_covered": 25,
+  "top_locations": [
+    {
+      "name": "Outer Ring Road",
+      "violations": 8830,
+      "estimated_delay_mins": 44150.0
+    },
+    {
+      "name": "MBT Road",
+      "violations": 6429,
+      "estimated_delay_mins": 32145.0
+    },
+    {
+      "name": "New Horizon College Road",
+      "violations": 6291,
+      "estimated_delay_mins": 31455.0
+    },
+    {
+      "name": "1st Cross Road",
+      "violations": 6149,
+      "estimated_delay_mins": 30745.0
+    },
+    {
+      "name": "Mysore Road",
+      "violations": 5973,
+      "estimated_delay_mins": 29865.0
+    },
+    {
+      "name": "1st Main Road",
+      "violations": 5824,
+      "estimated_delay_mins": 29120.0
+    },
+    {
+      "name": "80 Feet Ring Road",
+      "violations": 5679,
+      "estimated_delay_mins": 28395.0
+    },
+    {
+      "name": "Unnamed Road",
+      "violations": 5071,
+      "estimated_delay_mins": 25355.0
+    },
+    {
+      "name": "5th Main Road",
+      "violations": 4975,
+      "estimated_delay_mins": 24875.0
+    },
+    {
+      "name": "Subedar Chatram Road",
+      "violations": 4974,
+      "estimated_delay_mins": 24870.0
+    },
+    {
+      "name": "Sahakar Nagar Road",
+      "violations": 4715,
+      "estimated_delay_mins": 23575.0
+    },
+    {
+      "name": "Chord Road",
+      "violations": 4680,
+      "estimated_delay_mins": 23400.0
+    },
+    {
+      "name": "Kamaraj Road",
+      "violations": 4551,
+      "estimated_delay_mins": 22755.0
+    },
+    {
+      "name": "Sri Venkataranga Ayangar Road",
+      "violations": 4223,
+      "estimated_delay_mins": 21115.0
+    },
+    {
+      "name": "Bellary Road",
+      "violations": 4061,
+      "estimated_delay_mins": 20305.0
+    },
+    {
+      "name": "3rd Cross Road",
+      "violations": 3810,
+      "estimated_delay_mins": 19050.0
+    },
+    {
+      "name": "AS Char Main Road",
+      "violations": 3625,
+      "estimated_delay_mins": 18125.0
+    },
+    {
+      "name": "Hosur Road",
+      "violations": 3580,
+      "estimated_delay_mins": 17900.0
+    },
+    {
+      "name": "6th Main Road",
+      "violations": 3449,
+      "estimated_delay_mins": 17245.0
+    },
+    {
+      "name": "ITPL Main Road",
+      "violations": 3032,
+      "estimated_delay_mins": 15160.0
+    },
+    {
+      "name": "Palace Road",
+      "violations": 2958,
+      "estimated_delay_mins": 14790.0
+    },
+    {
+      "name": "G Narayana Kumar Road",
+      "violations": 2926,
+      "estimated_delay_mins": 14630.0
+    },
+    {
+      "name": "Dispensary Road",
+      "violations": 2924,
+      "estimated_delay_mins": 14620.0
+    },
+    {
+      "name": "Y Ramachandra Road",
+      "violations": 2805,
+      "estimated_delay_mins": 14025.0
+    },
+    {
+      "name": "Da Ra Bendre Road",
+      "violations": 2698,
+      "estimated_delay_mins": 13490.0
+    },
+    {
+      "name": "2nd Main Road",
+      "violations": 2603,
+      "estimated_delay_mins": 13015.0
+    },
+    {
+      "name": "Main Guard Cross Road",
+      "violations": 2566,
+      "estimated_delay_mins": 12830.0
+    },
+    {
+      "name": "Padmabhushan Dr MC Modi Road",
+      "violations": 2551,
+      "estimated_delay_mins": 12755.0
+    },
+    {
+      "name": "4th Main Road",
+      "violations": 2463,
+      "estimated_delay_mins": 12315.0
+    },
+    {
+      "name": "Major T Ramachandrappa Road",
+      "violations": 2455,
+      "estimated_delay_mins": 12275.0
+    },
+    {
+      "name": "Silver Jubilee Park Road",
+      "violations": 2448,
+      "estimated_delay_mins": 12240.0
+    },
+    {
+      "name": "Old Madras Road",
+      "violations": 2417,
+      "estimated_delay_mins": 12085.0
+    },
+    {
+      "name": "Dickenson Road",
+      "violations": 2296,
+      "estimated_delay_mins": 11480.0
+    },
+    {
+      "name": "20th Main Road",
+      "violations": 2294,
+      "estimated_delay_mins": 11470.0
+    },
+    {
+      "name": "Sri Sankasta Hara Ganapati Temple Road",
+      "violations": 2251,
+      "estimated_delay_mins": 11255.0
+    },
+    {
+      "name": "Meenakshi Koil Street",
+      "violations": 2223,
+      "estimated_delay_mins": 11115.0
+    },
+    {
+      "name": "Kempegowda Road",
+      "violations": 2135,
+      "estimated_delay_mins": 10675.0
+    },
+    {
+      "name": "Vajreshwari Road",
+      "violations": 2121,
+      "estimated_delay_mins": 10605.0
+    },
+    {
+      "name": "3rd Main Road",
+      "violations": 2042,
+      "estimated_delay_mins": 10210.0
+    },
+    {
+      "name": "19th Main Road",
+      "violations": 2037,
+      "estimated_delay_mins": 10185.0
+    }
+  ],
+  "police_stations": [
+    {
+      "name": "Upparpet",
+      "violations": 34468
+    },
+    {
+      "name": "Shivajinagar",
+      "violations": 28044
+    },
+    {
+      "name": "Malleshwaram",
+      "violations": 22200
+    },
+    {
+      "name": "HAL Old Airport",
+      "violations": 20819
+    },
+    {
+      "name": "City Market",
+      "violations": 17646
+    },
+    {
+      "name": "Vijayanagara",
+      "violations": 14652
+    },
+    {
+      "name": "Rajajinagar",
+      "violations": 10998
+    },
+    {
+      "name": "Kodigehalli",
+      "violations": 10916
+    },
+    {
+      "name": "Magadi Road",
+      "violations": 8558
+    },
+    {
+      "name": "Jeevanbheemanagar",
+      "violations": 6736
+    },
+    {
+      "name": "K.R. Pura",
+      "violations": 6546
+    },
+    {
+      "name": "Halasuru Gate",
+      "violations": 6294
+    },
+    {
+      "name": "Mahadevapura",
+      "violations": 6187
+    },
+    {
+      "name": "Chikkajala",
+      "violations": 5834
+    },
+    {
+      "name": "HSR Layout",
+      "violations": 5018
+    },
+    {
+      "name": "Bellandur",
+      "violations": 4964
+    },
+    {
+      "name": "High ground",
+      "violations": 4951
+    },
+    {
+      "name": "Byatarayanapura",
+      "violations": 4555
+    },
+    {
+      "name": "Electronic City",
+      "violations": 4333
+    },
+    {
+      "name": "Pulikeshinagar(F.Town)",
+      "violations": 4136
+    },
+    {
+      "name": "Halasur",
+      "violations": 4011
+    },
+    {
+      "name": "Jayanagara",
+      "violations": 3813
+    },
+    {
+      "name": "Chamarajpet",
+      "violations": 3795
+    },
+    {
+      "name": "Banaswadi",
+      "violations": 3759
+    },
+    {
+      "name": "Basavanagudi",
+      "violations": 3604
+    }
+  ],
+  "hourly_distribution": [
+    {
+      "hour": 0,
+      "violations": 21762
+    },
+    {
+      "hour": 1,
+      "violations": 17155
+    },
+    {
+      "hour": 2,
+      "violations": 24770
+    },
+    {
+      "hour": 3,
+      "violations": 25709
+    },
+    {
+      "hour": 4,
+      "violations": 29102
+    },
+    {
+      "hour": 5,
+      "violations": 34085
+    },
+    {
+      "hour": 6,
+      "violations": 26890
+    },
+    {
+      "hour": 7,
+      "violations": 14608
+    },
+    {
+      "hour": 8,
+      "violations": 8556
+    },
+    {
+      "hour": 9,
+      "violations": 3145
+    },
+    {
+      "hour": 10,
+      "violations": 518
+    },
+    {
+      "hour": 11,
+      "violations": 577
+    },
+    {
+      "hour": 12,
+      "violations": 219
+    },
+    {
+      "hour": 13,
+      "violations": 56
+    },
+    {
+      "hour": 14,
+      "violations": 16
+    },
+    {
+      "hour": 15,
+      "violations": 66
+    },
+    {
+      "hour": 16,
+      "violations": 416
+    },
+    {
+      "hour": 17,
+      "violations": 818
+    },
+    {
+      "hour": 18,
+      "violations": 1971
+    },
+    {
+      "hour": 19,
+      "violations": 10713
+    },
+    {
+      "hour": 20,
+      "violations": 11834
+    },
+    {
+      "hour": 21,
+      "violations": 19763
+    },
+    {
+      "hour": 22,
+      "violations": 22840
+    },
+    {
+      "hour": 23,
+      "violations": 22861
+    }
+  ],
+  "vehicle_breakdown": [
+    {
+      "type": "SCOOTER",
+      "count": 94856
+    },
+    {
+      "type": "CAR",
+      "count": 88870
+    },
+    {
+      "type": "MOTOR CYCLE",
+      "count": 40811
+    },
+    {
+      "type": "PASSENGER AUTO",
+      "count": 37813
+    },
+    {
+      "type": "MAXI-CAB",
+      "count": 11372
+    },
+    {
+      "type": "LGV",
+      "count": 8255
+    },
+    {
+      "type": "GOODS AUTO",
+      "count": 2934
+    },
+    {
+      "type": "MOPED",
+      "count": 2199
+    },
+    {
+      "type": "PRIVATE BUS",
+      "count": 1633
+    },
+    {
+      "type": "VAN",
+      "count": 1466
+    },
+    {
+      "type": "TEMPO",
+      "count": 1368
+    },
+    {
+      "type": "BUS (BMTC/KSRTC)",
+      "count": 1281
+    },
+    {
+      "type": "HGV",
+      "count": 1144
+    },
+    {
+      "type": "LORRY/GOODS VEHICLE",
+      "count": 1122
+    },
+    {
+      "type": "JEEP",
+      "count": 913
+    }
+  ],
+  "weekday_distribution": [
+    {
+      "day": "Monday",
+      "violations": 38931
+    },
+    {
+      "day": "Tuesday",
+      "violations": 42930
+    },
+    {
+      "day": "Wednesday",
+      "violations": 43067
+    },
+    {
+      "day": "Thursday",
+      "violations": 41528
+    },
+    {
+      "day": "Friday",
+      "violations": 41702
+    },
+    {
+      "day": "Saturday",
+      "violations": 43427
+    },
+    {
+      "day": "Sunday",
+      "violations": 46865
+    }
+  ],
+  "peak_hour": {
+    "hour": 5,
+    "violations": 34085
+  }
+}

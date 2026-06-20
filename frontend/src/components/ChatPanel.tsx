@@ -2,30 +2,97 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Bot, Send, ChevronDown, ChevronUp } from "lucide-react";
+import { fetchContextSummary } from "@/lib/api";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-interface ChatPanelProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  context?: Record<string, any>;
-  contextLabel?: string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildContextDocument(summary: Record<string, any> | null): string {
+  if (!summary) return "";
+
+  const lines: string[] = [];
+  lines.push("BENGALURU PARKING VIOLATIONS DATA SUMMARY");
+  lines.push("=========================================");
+  lines.push(`Total violations: ${summary.total_violations?.toLocaleString() ?? "N/A"}`);
+  lines.push(`Total hotspots (H3 hexagons): ${summary.total_hotspots ?? "N/A"}`);
+  lines.push(`Total estimated delay: ${summary.total_estimated_delay_hours ?? "N/A"} hours`);
+  lines.push(`Police stations covered: ${summary.police_stations_covered ?? "N/A"}`);
+  lines.push("");
+
+  const peak = summary.peak_hour as Record<string, unknown> | undefined;
+  if (peak) {
+    lines.push(`Peak hour: ${peak.hour}:00 (${peak.violations?.toLocaleString()} violations)`);
+    lines.push("");
+  }
+
+  // Top locations
+  lines.push("TOP LOCATIONS (by violation count):");
+  const locs = (summary.top_locations as Record<string, unknown>[]) ?? [];
+  for (const loc of locs) {
+    lines.push(`  - ${loc.name}: ${(loc.violations as number).toLocaleString()} violations`);
+  }
+  lines.push("");
+
+  // Police stations
+  lines.push("POLICE STATIONS (by violation count):");
+  const stations = (summary.police_stations as Record<string, unknown>[]) ?? [];
+  for (const s of stations) {
+    lines.push(`  - ${s.name}: ${(s.violations as number).toLocaleString()} violations`);
+  }
+  lines.push("");
+
+  // Hourly
+  lines.push("HOURLY VIOLATION DISTRIBUTION:");
+  const hours = (summary.hourly_distribution as Record<string, unknown>[]) ?? [];
+  for (const h of hours) {
+    lines.push(`  ${String(h.hour).padStart(2, "0")}:00 — ${(h.violations as number).toLocaleString()} violations`);
+  }
+  lines.push("");
+
+  // Vehicles
+  lines.push("VEHICLE BREAKDOWN (top 15):");
+  const vehicles = (summary.vehicle_breakdown as Record<string, unknown>[]) ?? [];
+  for (const v of vehicles) {
+    lines.push(`  - ${v.type}: ${(v.count as number).toLocaleString()} violations`);
+  }
+  lines.push("");
+
+  // Weekdays
+  lines.push("WEEKDAY DISTRIBUTION:");
+  const weekdays = (summary.weekday_distribution as Record<string, unknown>[]) ?? [];
+  for (const d of weekdays) {
+    lines.push(`  - ${d.day}: ${(d.violations as number).toLocaleString()} violations`);
+  }
+
+  return lines.join("\n");
 }
 
-export function ChatPanel({ context, contextLabel }: ChatPanelProps) {
+export function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Ask me anything about the traffic data on this page.",
+      content:
+        "I have the full Bengaluru parking violations dataset loaded. Ask me about traffic hotspots, congestion patterns, specific areas, police stations, or peak hours.",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [contextDoc, setContextDoc] = useState<string>("");
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Fetch the data context summary on mount
+  useEffect(() => {
+    fetchContextSummary().then((summary) => {
+      if (summary) {
+        setContextDoc(buildContextDocument(summary));
+      }
+    });
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -58,7 +125,7 @@ export function ChatPanel({ context, contextLabel }: ChatPanelProps) {
             role: m.role,
             content: m.content,
           })),
-          context,
+          context: { data_summary: contextDoc },
         }),
       });
 
@@ -86,7 +153,7 @@ export function ChatPanel({ context, contextLabel }: ChatPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, context]);
+  }, [input, loading, messages, contextDoc]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -103,7 +170,6 @@ export function ChatPanel({ context, contextLabel }: ChatPanelProps) {
         {/* Message history — collapsible */}
         {hasMessages && (
           <div className="mb-2 rounded-2xl border border-zinc-700/60 bg-zinc-950/90 shadow-xl shadow-black/30 backdrop-blur-xl">
-            {/* Toggle bar */}
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
@@ -111,8 +177,13 @@ export function ChatPanel({ context, contextLabel }: ChatPanelProps) {
             >
               <Bot className="h-3.5 w-3.5 text-zinc-500" />
               <span className="text-xs font-medium text-zinc-400">
-                {contextLabel ?? "ClearLane AI"}
+                ClearLane AI
               </span>
+              {contextDoc && (
+                <span className="text-[10px] text-zinc-600">
+                  {contextDoc.split("\n")[1]?.trim() ?? "Data loaded"}
+                </span>
+              )}
               <span className="ml-auto text-zinc-600">
                 {expanded ? (
                   <ChevronDown className="h-3.5 w-3.5" />
@@ -122,7 +193,6 @@ export function ChatPanel({ context, contextLabel }: ChatPanelProps) {
               </span>
             </button>
 
-            {/* Messages panel */}
             {expanded && (
               <div
                 ref={listRef}
@@ -169,7 +239,11 @@ export function ChatPanel({ context, contextLabel }: ChatPanelProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about the traffic data..."
+            placeholder={
+              contextDoc
+                ? "Ask about traffic hotspots, areas, stations, patterns..."
+                : "Loading data..."
+            }
             rows={1}
             className="flex-1 resize-none bg-transparent text-sm text-zinc-200 placeholder-zinc-600 outline-none"
             style={{ minHeight: "24px", maxHeight: "96px" }}

@@ -734,10 +734,7 @@ export default function AnalyticsPage() {
           </>
         )}
 
-        <ChatPanel
-          context={{ analytics: data, dayFilter, selectedHour, horizon }}
-          contextLabel="Analytics context"
-        />
+        <ChatPanel />
       </main>
     </div>
   );

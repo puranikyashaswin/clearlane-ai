@@ -167,6 +167,18 @@ export async function fetchAnalytics(
   return fetchOrDemo(url, "/demo-data/analytics.json");
 }
 
+/** Fetch the comprehensive data summary used for LLM chat context. */
+export async function fetchContextSummary(): Promise<Record<string, unknown> | null> {
+  try {
+    return await fetchOrDemo<Record<string, unknown>>(
+      `${API_BASE}/api/context-summary`,
+      "/demo-data/context-summary.json",
+    );
+  } catch {
+    return null;
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Utils                                                              */
 /* ------------------------------------------------------------------ */
