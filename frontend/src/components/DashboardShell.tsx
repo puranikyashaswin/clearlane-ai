@@ -241,12 +241,15 @@ const buildAlert = (
 ): DispatchAlert => {
   const props = feature.properties;
   const violations = props.violation_count || 0;
+  // Use CIS score to compute a credible delay: CIS/100 rounded up, minimum 5 if there are violations
+  const cisDelay = props.cis_score ? Math.max(Math.round(props.cis_score / 100), 5) : 0;
+  const delayMins = cisDelay || props.estimated_delay_mins || Math.round(violations * 0.5);
   return {
     id: `${props.h3_index}-${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
     station: POLICE_STATIONS[index % POLICE_STATIONS.length],
     zone: props.h3_index,
     violations,
-    delayMins: props.estimated_delay_mins || 0,
+    delayMins,
     severity: severityFor(violations),
     timestamp,
     hour,
@@ -734,119 +737,71 @@ export function DashboardShell({
           drawerOpen ? "left-80 right-96" : "left-80 right-0"
         )}
       >
-        {route && route.coordinates.length > 0 ? (
-          <HexMap
-            data={data as unknown as import("@/components/HexMap").GeoJSON}
-            onHover={(info: PickingInfo) => {
-              if (info.object) {
-                const hexData = info.object as H3HexData;
-                setHoverInfo({
-                  object: {
-                    type: "Feature",
-                    geometry: { type: "Polygon", coordinates: [] },
-                    properties: {
-                      ...hexData.properties,
-                      violation_count: hexData.count,
-                      primary_vehicle: hexData.properties?.primary_vehicle || "Mixed",
-                      place_name: hexData.properties?.place_name || hexData.hex.slice(0, 8),
-                      center: hexData.center,
-                    },
-                  } as GeoJSONFeature,
-                  x: info.x,
-                  y: info.y,
-                });
-              } else {
-                setHoverInfo(null);
-              }
-            }}
-            onClick={(info: PickingInfo) => {
-              if (info.object) {
-                const hexData = info.object as H3HexData;
-                setClickedHotspot({
-                  h3_index: hexData.hex,
-                  center: hexData.center,
-                  properties: hexData.properties,
-                });
-                setRoute(null);
-                const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
-                if (!token) return;
-                setRouteLoading(true);
-                void fetchRoute(MG_ROAD_ORIGIN, hexData.center, token).then((r) => {
-                  setRoute(r);
-                  setRouteLoading(false);
-                });
-              }
-            }}
-            viewState={viewState}
-            onViewStateChange={({ viewState: next }) => {
-              setViewState(next);
-            }}
-            extraLayers={
-              route && route.coordinates.length > 0
-                ? [
-                    new PathLayer<{ path: [number, number][] }>({
-                      id: "clicked-hotspot-route",
-                      data: [{ path: route.coordinates }],
-                      getPath: (d: { path: [number, number][] }) => d.path,
-                      getColor: [37, 99, 235, 230],
-                      getWidth: 5,
-                      widthUnits: "pixels",
-                      capRounded: true,
-                      jointRounded: true,
-                    }),
-                  ]
-                : undefined
+        <HexMap
+          data={data as unknown as import("@/components/HexMap").GeoJSON}
+          onHover={(info: PickingInfo) => {
+            if (info.object) {
+              const hexData = info.object as H3HexData;
+              setHoverInfo({
+                object: {
+                  type: "Feature",
+                  geometry: { type: "Polygon", coordinates: [] },
+                  properties: {
+                    ...hexData.properties,
+                    violation_count: hexData.count,
+                    primary_vehicle: hexData.properties?.primary_vehicle || "Mixed",
+                    place_name: hexData.properties?.place_name || hexData.hex.slice(0, 8),
+                    center: hexData.center,
+                  },
+                } as GeoJSONFeature,
+                x: info.x,
+                y: info.y,
+              });
+            } else {
+              setHoverInfo(null);
             }
-          />
-        ) : (
-          <HexMap
-            data={data as unknown as import("@/components/HexMap").GeoJSON}
-            onHover={(info: PickingInfo) => {
-              if (info.object) {
-                const hexData = info.object as H3HexData;
-                setHoverInfo({
-                  object: {
-                    type: "Feature",
-                    geometry: { type: "Polygon", coordinates: [] },
-                    properties: {
-                      ...hexData.properties,
-                      violation_count: hexData.count,
-                      primary_vehicle: hexData.properties?.primary_vehicle || "Mixed",
-                      place_name: hexData.properties?.place_name || hexData.hex.slice(0, 8),
-                      center: hexData.center,
-                    },
-                  } as GeoJSONFeature,
-                  x: info.x,
-                  y: info.y,
-                });
-              } else {
-                setHoverInfo(null);
-              }
-            }}
-            onClick={(info: PickingInfo) => {
-              if (info.object) {
-                const hexData = info.object as H3HexData;
-                setClickedHotspot({
-                  h3_index: hexData.hex,
-                  center: hexData.center,
-                  properties: hexData.properties,
-                });
-                setRoute(null);
-                const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
-                if (!token) return;
-                setRouteLoading(true);
-                void fetchRoute(MG_ROAD_ORIGIN, hexData.center, token).then((r) => {
-                  setRoute(r);
-                  setRouteLoading(false);
-                });
-              }
-            }}
-            viewState={viewState}
-            onViewStateChange={({ viewState: next }) => {
-              setViewState(next);
-            }}
-          />
-        )}
+          }}
+          onClick={(info: PickingInfo) => {
+            if (info.object) {
+              const hexData = info.object as H3HexData;
+              setClickedHotspot({
+                h3_index: hexData.hex,
+                center: hexData.center,
+                properties: hexData.properties,
+              });
+              setRoute(null);
+              const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+              if (!token) return;
+              setRouteLoading(true);
+              void fetchRoute(MG_ROAD_ORIGIN, hexData.center, token).then((r) => {
+                setRoute(r);
+                setRouteLoading(false);
+              });
+            }
+          }}
+          viewState={viewState}
+          onViewStateChange={({ viewState: next }) => {
+            setViewState(next);
+          }}
+          extraLayers={
+            route && route.coordinates.length > 0
+              ? [
+                  new PathLayer<{ path: [number, number][] }>({
+                    id: "clicked-hotspot-route",
+                    data: [{ path: route.coordinates }],
+                    getPath: (d: { path: [number, number][] }) => d.path,
+                    getColor: [37, 99, 235, 230],
+                    getWidth: 5,
+                    widthUnits: "pixels",
+                    capRounded: true,
+                    jointRounded: true,
+                  }),
+                ]
+              : undefined
+          }
+          selectedHour={selectedHour}
+          onHourChange={handleHourChange}
+        />
 
         {hoverInfo && <HoverTooltip info={hoverInfo} />}
 

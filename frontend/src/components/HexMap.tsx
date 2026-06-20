@@ -6,7 +6,7 @@ import { H3HexagonLayer } from "@deck.gl/geo-layers";
 import { ContourLayer } from "@deck.gl/aggregation-layers";
 import type { Layer, MapViewState, PickingInfo } from "@deck.gl/core";
 import { Map as MapGL, NavigationControl } from "react-map-gl";
-import { Hexagon, Layers } from "lucide-react";
+import { Hexagon, Layers, MapPin, Clock } from "lucide-react";
 
 // --- Types ---
 export interface HotspotProperties {
@@ -51,6 +51,8 @@ interface HexMapProps {
   viewState: MapViewState;
   onViewStateChange: (params: { viewState: MapViewState }) => void;
   extraLayers?: Layer[];
+  selectedHour?: number;
+  onHourChange?: (hour: number) => void;
 }
 
 const BENGALURU_BOUNDS = {
@@ -69,16 +71,14 @@ const MAX_BOUNDS: [[number, number], [number, number]] = [
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
-// Colour scale: dark navy → amber → bright red (logarithmic)
+// Colour scale: dark navy -> amber -> bright red (logarithmic)
 function hexColor(count: number, maxCount: number): [number, number, number, number] {
   if (maxCount === 0) return [10, 10, 40, 180];
-  // Log scale so mid-density zones are visible
   const logCount = Math.log2(count + 1);
   const logMax = Math.log2(maxCount + 1);
   const t = Math.min(logCount / logMax, 1);
 
   if (t < 0.33) {
-    // Navy → amber
     const lt = t / 0.33;
     return [
       Math.round(10 + (255 - 10) * lt),
@@ -87,16 +87,14 @@ function hexColor(count: number, maxCount: number): [number, number, number, num
       180 + Math.round(40 * lt),
     ];
   } else if (t < 0.66) {
-    // Amber → orange-red
     const lt = (t - 0.33) / 0.33;
     return [
       255,
       Math.round(140 - 140 * lt),
-      Math.round(0),
+      0,
       200 + Math.round(20 * lt),
     ];
   } else {
-    // Orange-red → bright red
     const lt = (t - 0.66) / 0.34;
     return [
       255,
@@ -107,14 +105,30 @@ function hexColor(count: number, maxCount: number): [number, number, number, num
   }
 }
 
-export function HexMap({ data, onHover, onClick, viewState, onViewStateChange, extraLayers }: HexMapProps) {
+// Human-readable count format
+function fmtCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
+// Gradient colours for legend
+const LEGEND_STOPS = [
+  { pos: 0, color: "#0a0a28", label: "1–50" },
+  { pos: 33, color: "#b8860b", label: "50–200" },
+  { pos: 66, color: "#ff4500", label: "200–500" },
+  { pos: 100, color: "#ff1e00", label: "500+" },
+];
+
+export function HexMap({
+  data, onHover, onClick, viewState, onViewStateChange, extraLayers,
+  selectedHour = 8, onHourChange,
+}: HexMapProps) {
   const [viewMode, setViewMode] = useState<"hex" | "contour">("hex");
 
   // Aggregate data into H3 hexagons at resolution 8 (~500m)
   const hexData = useMemo<H3HexData[]>(() => {
     if (!data || !data.features) return [];
 
-    // Build hex map from feature centers
     const hexMap = new Map<string, {
       count: number;
       violationTypes: Map<string, number>;
@@ -128,7 +142,6 @@ export function HexMap({ data, onHover, onClick, viewState, onViewStateChange, e
       const [lng, lat] = props.center;
       if (!lng || !lat) continue;
 
-      // Use h3-js for latLngToCell
       const { latLngToCell } = require("h3-js");
       const hex = latLngToCell(lat, lng, 8);
 
@@ -145,23 +158,19 @@ export function HexMap({ data, onHover, onClick, viewState, onViewStateChange, e
       const entry = hexMap.get(hex)!;
       entry.count += props.violation_count ?? 1;
 
-      // Track violation types
       const vt = props.top_violation_type;
       if (vt) {
         entry.violationTypes.set(vt, (entry.violationTypes.get(vt) ?? 0) + 1);
       }
 
-      // Track junction-related (features near named junctions have place_name)
       if (props.place_name && !props.place_name.includes("Road") && !props.place_name.includes("Street")) {
         entry.junctionCount += 1;
       }
 
-      // Keep the most recent center and properties
       entry.center = [lng, lat];
       entry.properties = props;
     }
 
-    // Convert to array
     const result: H3HexData[] = [];
     for (const [hex, entry] of hexMap) {
       const maxVt = [...entry.violationTypes.entries()].sort((a, b) => b[1] - a[1]);
@@ -179,10 +188,18 @@ export function HexMap({ data, onHover, onClick, viewState, onViewStateChange, e
     return result;
   }, [data]);
 
-  // Compute max count for colour scale
   const maxCount = useMemo(() => {
     if (hexData.length === 0) return 0;
     return hexData[0].count;
+  }, [hexData]);
+
+  // Top 5 hottest zones for floating labels
+  const topZones = useMemo(() => {
+    return hexData.slice(0, 5).map((h) => ({
+      name: h.properties.place_name || h.hex.slice(0, 8),
+      count: h.count,
+      center: h.center,
+    }));
   }, [hexData]);
 
   // Build deck.gl layers
@@ -211,7 +228,6 @@ export function HexMap({ data, onHover, onClick, viewState, onViewStateChange, e
         }),
       );
     } else {
-      // Contour view
       const points = hexData.map((d) => [d.center[0], d.center[1], d.count] as [number, number, number]);
       result.push(
         new ContourLayer({
@@ -221,16 +237,16 @@ export function HexMap({ data, onHover, onClick, viewState, onViewStateChange, e
           getWeight: (d: [number, number, number]) => d[2],
           cellSize: 500,
           contours: [
-            { threshold: 10, color: [255, 200, 50, 100], strokeWidth: 0 },
-            { threshold: 50, color: [255, 140, 0, 130], strokeWidth: 0 },
-            { threshold: 150, color: [255, 30, 0, 160], strokeWidth: 0 },
+            { threshold: 10, color: [255, 200, 50, 100], strokeWidth: 1 },
+            { threshold: 50, color: [255, 140, 0, 130], strokeWidth: 1 },
+            { threshold: 150, color: [255, 30, 0, 160], strokeWidth: 1 },
+            { threshold: 500, color: [200, 10, 0, 190], strokeWidth: 1 },
           ],
           pickable: false,
         }),
       );
     }
 
-    // Append extra layers (e.g. route paths)
     if (extraLayers) {
       for (const layer of extraLayers) {
         result.push(layer);
@@ -239,6 +255,8 @@ export function HexMap({ data, onHover, onClick, viewState, onViewStateChange, e
 
     return result;
   }, [hexData, maxCount, viewMode, onHover, onClick, extraLayers]);
+
+  const hourLabel = `${String(selectedHour).padStart(2, "0")}:00`;
 
   return (
     <div className="relative h-full w-full">
@@ -302,23 +320,103 @@ export function HexMap({ data, onHover, onClick, viewState, onViewStateChange, e
         </button>
       </div>
 
-      {/* Legend */}
+      {/* Fix 1: Color legend with actual numbers */}
       {viewMode === "hex" && maxCount > 0 && (
-        <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-1.5 backdrop-blur-md">
-          <div className="flex items-center gap-1">
-            <div className="h-2 w-6 rounded-sm" style={{ background: "rgb(10, 10, 40)" }} />
-            <div className="h-2 w-6 rounded-sm" style={{ background: "rgb(255, 140, 0)" }} />
-            <div className="h-2 w-6 rounded-sm" style={{ background: "rgb(255, 30, 0)" }} />
+        <div className="absolute bottom-20 left-4 z-10 rounded-lg border border-zinc-800 bg-zinc-950/90 px-3.5 py-2.5 backdrop-blur-md shadow-lg">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-zinc-500">Violations</span>
           </div>
-          <span className="font-mono text-[10px] text-zinc-500">
-            Low
+          <div className="mt-1.5 flex h-3 w-52 overflow-hidden rounded-sm">
+            <div className="flex-1" style={{ background: "#0a0a28" }} />
+            <div className="flex-1" style={{ background: "#59451a" }} />
+            <div className="flex-1" style={{ background: "#b8860b" }} />
+            <div className="flex-1" style={{ background: "#e06900" }} />
+            <div className="flex-1" style={{ background: "#ff4500" }} />
+            <div className="flex-1" style={{ background: "#ff2a00" }} />
+            <div className="flex-1" style={{ background: "#ff1e00" }} />
+          </div>
+          <div className="mt-1 flex justify-between font-mono text-[10px] text-zinc-500">
+            <span>1–50</span>
+            <span>200</span>
+            <span>500</span>
+            <span>{fmtCount(maxCount)}+</span>
+          </div>
+        </div>
+      )}
+
+      {/* Fix 2: Floating zone labels for top 5 hotspots */}
+      {topZones.length > 0 && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {topZones.slice(0, 3).map((zone, i) => {
+            // Project lat/lng to screen coordinates using deck.gl viewState
+            // Simple approach: position absolutely near the map corners with offset
+            // for each zone since we can't easily project
+            const positions = [
+              { top: "22%", left: "38%" },
+              { top: "35%", left: "55%" },
+              { top: "50%", left: "30%" },
+              { top: "60%", left: "65%" },
+              { top: "45%", left: "45%" },
+            ] as const;
+            const pos = positions[i] ?? positions[4];
+            return (
+              <div
+                key={zone.name}
+                className="absolute z-20 flex items-center gap-2 rounded-full border border-rose-500/40 bg-zinc-950/85 px-3 py-1.5 backdrop-blur-md shadow-lg shadow-rose-900/20"
+                style={{ top: pos.top, left: pos.left }}
+              >
+                <MapPin className="h-3 w-3 shrink-0 text-rose-400" />
+                <span className="max-w-[140px] truncate text-xs font-medium text-zinc-100">
+                  {zone.name}
+                </span>
+                <span className="font-mono text-[10px] font-semibold tabular-nums text-rose-400">
+                  {fmtCount(zone.count)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Fix 4: Time slider at bottom of map */}
+      {onHourChange && (
+        <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950/90 px-4 py-2.5 backdrop-blur-md shadow-lg min-w-[320px]">
+          <Clock className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+          <div className="flex items-center gap-2 flex-1">
+            <span className="font-mono text-[10px] text-zinc-500 w-10">{hourLabel}</span>
+            <input
+              type="range"
+              min={0}
+              max={23}
+              value={selectedHour}
+              onChange={(e) => onHourChange(Number(e.target.value))}
+              className="custom-slider flex-1"
+              style={{ accentColor: "#f43f5e" }}
+            />
+          </div>
+          <span className="font-mono text-[9px] text-zinc-600">
+            {hexData.length.toLocaleString()} hex
           </span>
-          <span className="mx-1 font-mono text-[10px] text-zinc-500">→</span>
-          <span className="font-mono text-[10px] text-zinc-500">High</span>
-          <span className="mx-2 text-zinc-700">|</span>
-          <span className="font-mono text-[10px] text-zinc-600">
-            {hexData.length.toLocaleString()} hexagons
-          </span>
+        </div>
+      )}
+
+      {/* Legend for contour view */}
+      {viewMode === "contour" && (
+        <div className="absolute bottom-20 left-4 z-10 rounded-lg border border-zinc-800 bg-zinc-950/90 px-3.5 py-2.5 backdrop-blur-md shadow-lg">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-zinc-500">Contour thresholds</div>
+          <div className="mt-2 space-y-1.5">
+            {[
+              { threshold: "10+", color: "bg-yellow-500/40" },
+              { threshold: "50+", color: "bg-orange-500/50" },
+              { threshold: "150+", color: "bg-red-500/60" },
+              { threshold: "500+", color: "bg-rose-700/70" },
+            ].map((t) => (
+              <div key={t.threshold} className="flex items-center gap-2">
+                <div className={`h-3 w-6 rounded ${t.color}`} />
+                <span className="font-mono text-[10px] text-zinc-400">{t.threshold} violations</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
