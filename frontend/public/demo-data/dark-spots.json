@@ -1,0 +1,106 @@
+[
+  {
+    "h3_index": "8a61892420affff",
+    "place_name": "9th Main Road",
+    "severity_score": 169.0,
+    "unsent_ratio": 0.0,
+    "unvalidated_ratio": 0.0,
+    "rejected_ratio": 0.509,
+    "primary_label": "High rejection rate",
+    "center": [
+      77.63526645562129,
+      12.912809184615384
+    ]
+  },
+  {
+    "h3_index": "8a6189262a57fff",
+    "place_name": "Road Number 1",
+    "severity_score": 116.0,
+    "unsent_ratio": 0.0,
+    "unvalidated_ratio": 0.0,
+    "rejected_ratio": 0.595,
+    "primary_label": "High rejection rate",
+    "center": [
+      77.65745046896558,
+      12.850930541379315
+    ]
+  },
+  {
+    "h3_index": "8a60145a64f7fff",
+    "place_name": "4th Main Road",
+    "severity_score": 75.0,
+    "unsent_ratio": 0.0,
+    "unvalidated_ratio": 0.0,
+    "rejected_ratio": 0.507,
+    "primary_label": "High rejection rate",
+    "center": [
+      77.56738456133334,
+      12.958059692
+    ]
+  },
+  {
+    "h3_index": "8a61892e909ffff",
+    "place_name": "Memorial Road",
+    "severity_score": 72.0,
+    "unsent_ratio": 0.0,
+    "unvalidated_ratio": 0.0,
+    "rejected_ratio": 0.694,
+    "primary_label": "High rejection rate",
+    "center": [
+      77.61209613333335,
+      12.990326208333332
+    ]
+  },
+  {
+    "h3_index": "8a6014598cb7fff",
+    "place_name": "Mumbai Bengaluru Highway",
+    "severity_score": 69.0,
+    "unsent_ratio": 0.0,
+    "unvalidated_ratio": 0.0,
+    "rejected_ratio": 0.58,
+    "primary_label": "High rejection rate",
+    "center": [
+      77.4969145362319,
+      13.048982521739134
+    ]
+  },
+  {
+    "h3_index": "8a60145b561ffff",
+    "place_name": "Magadi Road",
+    "severity_score": 58.0,
+    "unsent_ratio": 0.0,
+    "unvalidated_ratio": 0.0,
+    "rejected_ratio": 0.655,
+    "primary_label": "High rejection rate",
+    "center": [
+      77.56431176896552,
+      12.979450977586207
+    ]
+  },
+  {
+    "h3_index": "8a61892ed297fff",
+    "place_name": "Shivashankara Road",
+    "severity_score": 50.0,
+    "unsent_ratio": 0.0,
+    "unvalidated_ratio": 0.0,
+    "rejected_ratio": 0.56,
+    "primary_label": "High rejection rate",
+    "center": [
+      77.62087619799996,
+      12.974948250000002
+    ]
+  },
+  {
+    "h3_index": "8a61892cb817fff",
+    "place_name": "Bellary Road",
+    "severity_score": 41.0,
+    "unsent_ratio": 0.0,
+    "unvalidated_ratio": 0.0,
+    "rejected_ratio": 0.537,
+    "primary_label": "High rejection rate",
+    "center": [
+      77.59235307804879,
+      13.054043602439018
+    ]
+  }
+]

@@ -866,6 +866,73 @@ async def get_hotspot_times(h3_index: str = Query(..., description="H3 hexagon i
     })
 
 
+# ---------------------------------------------------------------------------
+# Feature 6: Enforcement Dark Spot Detector
+# ---------------------------------------------------------------------------
+@app.get("/api/dark-spots")
+async def get_dark_spots():
+    """Detect enforcement dark spots — hexes where enforcement is failing."""
+    csv_path = find_csv()
+    df = pl.read_csv(csv_path, ignore_errors=True)
+    df = df.drop_nulls(subset=["latitude", "longitude"])
+
+    # H3 spatial index
+    lats = df["latitude"].to_list()
+    lngs = df["longitude"].to_list()
+    h3_indices_list = [h3.latlng_to_cell(lat, lng, H3_RESOLUTION) for lat, lng in zip(lats, lngs)]
+    df = df.with_columns(pl.Series("h3_index", h3_indices_list))
+
+    dark_spots = []
+    hex_groups = df.group_by("h3_index")
+    for hex_key, hex_df in hex_groups:
+        h3_key = hex_key[0] if isinstance(hex_key, tuple) else str(hex_key)
+        total = len(hex_df)
+
+        # Compute enforcement ratios
+        unsent_count = hex_df.filter(pl.col("data_sent_to_scita") == "FALSE").height
+        unvalidated_count = hex_df.filter(
+            pl.col("validation_status").is_null() | (pl.col("validation_status") == "")
+        ).height
+        rejected_count = hex_df.filter(pl.col("validation_status") == "rejected").height
+
+        unsent_ratio = unsent_count / total if total > 0 else 0
+        unvalidated_ratio = unvalidated_count / total if total > 0 else 0
+        rejected_ratio = rejected_count / total if total > 0 else 0
+
+        # Label logic
+        if unsent_ratio > 0.5:
+            primary_label = "Data not sent to SCITA"
+        elif unvalidated_ratio > 0.5:
+            primary_label = "Pending validation"
+        elif rejected_ratio > 0.5:
+            primary_label = "High rejection rate"
+        else:
+            continue  # Not a dark spot
+
+        # Location and center
+        place = hex_df["location"].fill_null("").str.split(",").list.first().mode().first()
+        place_name = str(place).strip() if place and str(place).strip() else h3_key[:8]
+        center_lat = float(hex_df["latitude"].mean())
+        center_lng = float(hex_df["longitude"].mean())
+
+        # Severity score (simplified — violation_count as proxy)
+        severity_score = round(total * (1 + unsent_ratio + unvalidated_ratio), 2)
+
+        dark_spots.append({
+            "h3_index": h3_key,
+            "place_name": place_name,
+            "severity_score": severity_score,
+            "unsent_ratio": round(unsent_ratio, 3),
+            "unvalidated_ratio": round(unvalidated_ratio, 3),
+            "rejected_ratio": round(rejected_ratio, 3),
+            "primary_label": primary_label,
+            "center": [center_lng, center_lat],
+        })
+
+    dark_spots.sort(key=lambda x: x["severity_score"], reverse=True)
+    return JSONResponse(content=dark_spots[:8])
+
+
 @app.get("/api/context-summary")
 async def get_context_summary():
     """Comprehensive data summary for the LLM chat context."""

@@ -36,6 +36,7 @@ import { TimeSlider } from "@/components/TimeSlider";
 import { fetchHotspots, fetchStats } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
 import { RankedZoneList } from "@/components/RankedZoneList";
+import { DarkSpotsPanel } from "@/components/DarkSpotsPanel";
 import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import "mapbox-gl/dist/mapbox-gl.css" with { turbopackModuleType: "css" };
 
@@ -728,6 +729,10 @@ export function DashboardShell({
         <Divider />
 
         <RankedZoneList />
+
+        <Divider />
+
+        <DarkSpotsPanel />
 
         <Divider />
 
