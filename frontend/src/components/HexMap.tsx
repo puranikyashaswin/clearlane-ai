@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer } from "@deck.gl/geo-layers";
 import { ContourLayer } from "@deck.gl/aggregation-layers";
@@ -111,14 +111,6 @@ function fmtCount(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
   return n.toLocaleString();
 }
-
-// Gradient colours for legend
-const LEGEND_STOPS = [
-  { pos: 0, color: "#0a0a28", label: "1–50" },
-  { pos: 33, color: "#b8860b", label: "50–200" },
-  { pos: 66, color: "#ff4500", label: "200–500" },
-  { pos: 100, color: "#ff1e00", label: "500+" },
-];
 
 export function HexMap({
   data, onHover, onClick, viewState, onViewStateChange, extraLayers,

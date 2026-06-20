@@ -38,7 +38,6 @@ import {
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
 import { HorizonControl, type PredictionHorizon } from "@/components/HorizonControl";
-import { TimeSlider } from "@/components/TimeSlider";
 import { fetchAnalytics } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
 import Logo from "@/components/Logo";

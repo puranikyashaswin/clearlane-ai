@@ -140,21 +140,6 @@ const MAX_BOUNDS: [[number, number], [number, number]] = [
 
 const MG_ROAD_ORIGIN: [number, number] = [77.6068, 12.9756];
 
-const HOTSPOT_COLORS = {
-  normal: [250, 204, 21, 170] as [number, number, number, number],
-  high: [234, 88, 12, 200] as [number, number, number, number],
-  critical: [220, 38, 38, 220] as [number, number, number, number],
-};
-
-const severityFromCount = (count: number): Severity =>
-  count > 100 ? "critical" : count > 20 ? "high" : "normal";
-
-const colorForSeverity = (s: Severity): [number, number, number, number] => {
-  if (s === "critical") return HOTSPOT_COLORS.critical;
-  if (s === "high") return HOTSPOT_COLORS.high;
-  return HOTSPOT_COLORS.normal;
-};
-
 const fetchRoute = async (
   origin: [number, number],
   destination: [number, number],
