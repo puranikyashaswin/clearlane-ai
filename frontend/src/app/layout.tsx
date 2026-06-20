@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Dancing_Script } from "next/font/google";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 import { SplashScreen } from "@/components/SplashScreen";
 
 const inter = Inter({
   variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const dancingScript = Dancing_Script({
+  variable: "--font-dancing-script",
   subsets: ["latin"],
 });
 
@@ -48,7 +53,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`} data-scroll-behavior="smooth">
+    <html lang="en" className={`${inter.variable} ${dancingScript.variable} h-full antialiased`} data-scroll-behavior="smooth">
       <body className="min-h-full bg-zinc-950 text-zinc-100">
         <SplashScreen />
         {children}
