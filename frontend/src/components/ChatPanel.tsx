@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Bot, Send, ChevronDown, ChevronUp } from "lucide-react";
+import { Send, ChevronDown, ChevronUp } from "lucide-react";
 import { fetchContextSummary } from "@/lib/api";
 
 interface Message {
@@ -131,15 +131,59 @@ export function ChatPanel() {
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content;
-      if (reply) {
-        setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      // Read streaming response
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("text/event-stream")) {
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let accumulated = "";
+
+        // Add a placeholder assistant message
+        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          // Parse SSE lines
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content || "";
+                if (content) {
+                  accumulated += content;
+                  // Update the last assistant message progressively
+                  setMessages((prev) => {
+                    const next = [...prev];
+                    next[next.length - 1] = { role: "assistant", content: accumulated };
+                    return next;
+                  });
+                }
+              } catch {
+                // Skip malformed JSON lines
+              }
+            }
+          }
+        }
       } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: "I could not process that request." },
-        ]);
+        // Fallback for non-streaming
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content;
+        if (reply) {
+          setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: "I could not process that request." },
+          ]);
+        }
       }
     } catch {
       setMessages((prev) => [
@@ -175,7 +219,6 @@ export function ChatPanel() {
               onClick={() => setExpanded((v) => !v)}
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left"
             >
-              <Bot className="h-3.5 w-3.5 text-zinc-500" />
               <span className="text-xs font-medium text-zinc-400">
                 ClearLane AI
               </span>
@@ -233,7 +276,6 @@ export function ChatPanel() {
 
         {/* Input bar — always visible */}
         <div className="flex items-end gap-2 rounded-2xl border border-zinc-700/60 bg-zinc-950/90 px-4 py-3 shadow-xl shadow-black/30 backdrop-blur-xl">
-          <Bot className="mb-2 h-5 w-5 shrink-0 text-zinc-500" />
           <textarea
             ref={inputRef}
             value={input}

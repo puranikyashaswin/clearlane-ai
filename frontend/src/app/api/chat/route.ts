@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 
@@ -14,9 +14,9 @@ Be concise, specific, and use numbers from the data. You are talking to a traffi
 
 export async function POST(request: NextRequest) {
   if (!NVIDIA_API_KEY) {
-    return NextResponse.json(
-      { error: "NVIDIA API key not configured" },
-      { status: 500 },
+    return new Response(
+      JSON.stringify({ error: "NVIDIA API key not configured" }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
           messages: fullMessages,
           temperature: 0.3,
           max_tokens: 300,
+          stream: true,
         }),
       },
     );
@@ -57,19 +58,25 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("NVIDIA API error:", response.status, errorText);
-      return NextResponse.json(
-        { error: `NVIDIA API error: ${response.status}` },
-        { status: response.status },
+      return new Response(
+        JSON.stringify({ error: `NVIDIA API error: ${response.status}` }),
+        { status: response.status, headers: { "Content-Type": "application/json" } },
       );
     }
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    // Stream the response back to the client
+    return new Response(response.body, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   } catch (error) {
     console.error("Chat API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+    return new Response(
+      JSON.stringify({ error: "Internal server error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }
