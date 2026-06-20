@@ -9,11 +9,8 @@ import {
   useState,
   useTransition,
 } from "react";
-import DeckGL from "@deck.gl/react";
-import { GeoJsonLayer, PathLayer } from "@deck.gl/layers";
-import type { Layer, MapViewState, PickingInfo } from "@deck.gl/core";
-import type { Feature, Geometry } from "geojson";
-import { Map, NavigationControl } from "react-map-gl";
+import { PathLayer } from "@deck.gl/layers";
+import type { MapViewState, PickingInfo } from "@deck.gl/core";
 import {
   Activity,
   BarChart3,
@@ -38,6 +35,7 @@ import { fetchHotspots, fetchStats } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
 import { RankedZoneList } from "@/components/RankedZoneList";
 import { DarkSpotsPanel } from "@/components/DarkSpotsPanel";
+import { HexMap, type H3HexData } from "@/components/HexMap";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -463,109 +461,6 @@ export function DashboardShell({
     return filtered;
   }, [data, violationTypeFilter, vehicleTypeFilter]);
 
-  // Layers memoized with primitive-only deps so the deck.gl layer instances
-  // only rebuild when something user-visible changed.
-  const layers = useMemo<Layer[]>(() => {
-    const baseLayers: Layer[] = [];
-
-    const layerData = filteredData ?? data;
-    if (layerData) {
-      baseLayers.push(
-        new GeoJsonLayer<HotspotProperties>({
-          id: "geojson-layer",
-          data: layerData,
-          filled: true,
-          extruded: true,
-          wireframe: true,
-          getElevation: (f: Feature<Geometry, HotspotProperties>) => {
-            const props = f.properties;
-            const delay =
-              typeof props.predicted_delay === "number" &&
-              props.predicted_delay > 0
-                ? props.predicted_delay
-                : props.estimated_delay_mins || 0;
-            return delay * 15;
-          },
-          getFillColor: (f: Feature<Geometry, HotspotProperties>) => {
-            const count = f.properties.violation_count || 0;
-            return colorForSeverity(severityFromCount(count));
-          },
-          pickable: true,
-          autoHighlight: true,
-          opacity: 0.55,
-          onHover: (info: PickingInfo) => {
-            if (info.object) {
-              const feature = info.object as GeoJSONFeature;
-              const props = feature.properties;
-              setHoverInfo({ object: feature, x: info.x, y: info.y });
-              // Show export panel immediately on hover
-              setExportPanelData({
-                h3_index: props.h3_index,
-                center: [props.center[0], props.center[1]] as [number, number],
-                placeName: props.place_name ?? null,
-              });
-              setShowExportPanel(true);
-              if (dismissTimerRef.current !== null) {
-                clearTimeout(dismissTimerRef.current);
-                dismissTimerRef.current = null;
-              }
-            } else {
-              setHoverInfo(null);
-              // Start 2s dismiss timer — cursor has 2s to reach the panel
-              dismissTimerRef.current = setTimeout(() => {
-                if (!panelHoveredRef.current) {
-                  setShowExportPanel(false);
-                }
-              }, 2000);
-            }
-          },
-          onClick: (info: PickingInfo) => {
-            const feature = info.object as GeoJSONFeature | undefined;
-            if (!feature) return;
-            const props = feature.properties;
-            setClickedHotspot({
-              h3_index: props.h3_index,
-              center: [props.center[0], props.center[1]] as [number, number],
-              properties: props,
-            });
-            setRoute(null);
-            const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
-            if (!token) return;
-            setRouteLoading(true);
-            void fetchRoute(MG_ROAD_ORIGIN, props.center, token).then((r) => {
-              setRoute(r);
-              setRouteLoading(false);
-            });
-          },
-          updateTriggers: {
-            getFillColor: [
-              data ? data.features.length : 0,
-              clickedHotspot?.h3_index,
-            ],
-            getElevation: [data ? data.features.length : 0, horizon],
-          },
-        })
-      );
-    }
-
-    if (route && route.coordinates.length > 0) {
-      baseLayers.push(
-        new PathLayer<{ path: [number, number][] }>({
-          id: "clicked-hotspot-route",
-          data: [{ path: route.coordinates }],
-          getPath: (d: { path: [number, number][] }) => d.path,
-          getColor: [37, 99, 235, 230],
-          getWidth: 5,
-          widthUnits: "pixels",
-          capRounded: true,
-          jointRounded: true,
-        })
-      );
-    }
-
-    return baseLayers;
-  }, [data, route, clickedHotspot?.h3_index, horizon]);
-
   const istTime = useMemo(
     () => (now ? IST_TIME_FORMAT.format(now) : TIME_PLACEHOLDER),
     [now]
@@ -839,38 +734,119 @@ export function DashboardShell({
           drawerOpen ? "left-80 right-96" : "left-80 right-0"
         )}
       >
-        <DeckGL
-          viewState={viewState}
-          controller={true}
-          layers={layers}
-          onViewStateChange={({ viewState: next }) => {
-            if (!("longitude" in next)) return;
-            setViewState({
-              ...next,
-              longitude: clamp(
-                next.longitude,
-                BENGALURU_BOUNDS.minLon,
-                BENGALURU_BOUNDS.maxLon
-              ),
-              latitude: clamp(
-                next.latitude,
-                BENGALURU_BOUNDS.minLat,
-                BENGALURU_BOUNDS.maxLat
-              ),
-            });
-          }}
-        >
-          <Map
-            mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
-            mapStyle="mapbox://styles/mapbox/dark-v11"
-            minZoom={MIN_ZOOM}
-            maxZoom={MAX_ZOOM}
-            maxBounds={MAX_BOUNDS}
-            style={{ width: "100%", height: "100%" }}
-          >
-            <NavigationControl position="top-right" />
-          </Map>
-        </DeckGL>
+        {route && route.coordinates.length > 0 ? (
+          <HexMap
+            data={data as unknown as import("@/components/HexMap").GeoJSON}
+            onHover={(info: PickingInfo) => {
+              if (info.object) {
+                const hexData = info.object as H3HexData;
+                setHoverInfo({
+                  object: {
+                    type: "Feature",
+                    geometry: { type: "Polygon", coordinates: [] },
+                    properties: {
+                      ...hexData.properties,
+                      violation_count: hexData.count,
+                      primary_vehicle: hexData.properties?.primary_vehicle || "Mixed",
+                      place_name: hexData.properties?.place_name || hexData.hex.slice(0, 8),
+                      center: hexData.center,
+                    },
+                  } as GeoJSONFeature,
+                  x: info.x,
+                  y: info.y,
+                });
+              } else {
+                setHoverInfo(null);
+              }
+            }}
+            onClick={(info: PickingInfo) => {
+              if (info.object) {
+                const hexData = info.object as H3HexData;
+                setClickedHotspot({
+                  h3_index: hexData.hex,
+                  center: hexData.center,
+                  properties: hexData.properties,
+                });
+                setRoute(null);
+                const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+                if (!token) return;
+                setRouteLoading(true);
+                void fetchRoute(MG_ROAD_ORIGIN, hexData.center, token).then((r) => {
+                  setRoute(r);
+                  setRouteLoading(false);
+                });
+              }
+            }}
+            viewState={viewState}
+            onViewStateChange={({ viewState: next }) => {
+              setViewState(next);
+            }}
+            extraLayers={
+              route && route.coordinates.length > 0
+                ? [
+                    new PathLayer<{ path: [number, number][] }>({
+                      id: "clicked-hotspot-route",
+                      data: [{ path: route.coordinates }],
+                      getPath: (d: { path: [number, number][] }) => d.path,
+                      getColor: [37, 99, 235, 230],
+                      getWidth: 5,
+                      widthUnits: "pixels",
+                      capRounded: true,
+                      jointRounded: true,
+                    }),
+                  ]
+                : undefined
+            }
+          />
+        ) : (
+          <HexMap
+            data={data as unknown as import("@/components/HexMap").GeoJSON}
+            onHover={(info: PickingInfo) => {
+              if (info.object) {
+                const hexData = info.object as H3HexData;
+                setHoverInfo({
+                  object: {
+                    type: "Feature",
+                    geometry: { type: "Polygon", coordinates: [] },
+                    properties: {
+                      ...hexData.properties,
+                      violation_count: hexData.count,
+                      primary_vehicle: hexData.properties?.primary_vehicle || "Mixed",
+                      place_name: hexData.properties?.place_name || hexData.hex.slice(0, 8),
+                      center: hexData.center,
+                    },
+                  } as GeoJSONFeature,
+                  x: info.x,
+                  y: info.y,
+                });
+              } else {
+                setHoverInfo(null);
+              }
+            }}
+            onClick={(info: PickingInfo) => {
+              if (info.object) {
+                const hexData = info.object as H3HexData;
+                setClickedHotspot({
+                  h3_index: hexData.hex,
+                  center: hexData.center,
+                  properties: hexData.properties,
+                });
+                setRoute(null);
+                const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+                if (!token) return;
+                setRouteLoading(true);
+                void fetchRoute(MG_ROAD_ORIGIN, hexData.center, token).then((r) => {
+                  setRoute(r);
+                  setRouteLoading(false);
+                });
+              }
+            }}
+            viewState={viewState}
+            onViewStateChange={({ viewState: next }) => {
+              setViewState(next);
+            }}
+          />
+        )}
 
         {hoverInfo && <HoverTooltip info={hoverInfo} />}
 
