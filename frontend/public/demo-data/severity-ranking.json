@@ -13,6 +13,8 @@
       77.61024015355152,
       12.981294997890908
     ],
+    "cis_score": 18030.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 1
   },
   {
@@ -29,6 +31,8 @@
       77.57903361223354,
       12.97323202282978
     ],
+    "cis_score": 13980.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 2
   },
   {
@@ -45,6 +49,8 @@
       77.57633216408169,
       12.964542577988535
     ],
+    "cis_score": 8790.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 3
   },
   {
@@ -61,6 +67,8 @@
       77.57650009809336,
       12.977263640236687
     ],
+    "cis_score": 1110.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 4
   },
   {
@@ -77,6 +85,8 @@
       77.57686206126141,
       12.963827510774028
     ],
+    "cis_score": 12180.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 5
   },
   {
@@ -93,6 +103,8 @@
       77.60344073945254,
       12.984074392554746
     ],
+    "cis_score": 5550.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 6
   },
   {
@@ -109,6 +121,8 @@
       77.57731228750468,
       12.976325933595213
     ],
+    "cis_score": 2985.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 7
   },
   {
@@ -124,6 +138,8 @@
       77.69104847701558,
       12.933445361699286
     ],
+    "cis_score": 62190.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 8
   },
   {
@@ -140,6 +156,8 @@
       77.57553391316037,
       12.977562798632075
     ],
+    "cis_score": 7320.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 9
   },
   {
@@ -156,6 +174,8 @@
       77.57738859779943,
       12.964463141067524
     ],
+    "cis_score": 4890.0,
+    "cis_label": "Critical \u2014 intersection-level gridlock risk",
     "rank": 10
   }
 ]

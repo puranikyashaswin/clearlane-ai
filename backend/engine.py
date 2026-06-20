@@ -1,4 +1,5 @@
 import json
+import json
 import time
 from pathlib import Path
 import polars as pl
@@ -26,6 +27,12 @@ SPACE_MAP = {
     "HGV": 25.0, "LGV": 15.0, "VAN": 12.0, "TEMPO": 15.0, "TRACTOR": 20.0,
     "TANKER": 25.0, "MINI LORRY": 15.0, "TOURIST BUS": 35.0, "SCHOOL VEHICLE": 35.0,
     "FACTORY BUS": 35.0, "OTHERS": 5.0
+}
+
+HEAVY_VEHICLES = {
+    "BUS (BMTC/KSRTC)", "PRIVATE BUS", "LORRY/GOODS VEHICLE", "HGV",
+    "LGV", "TANKER", "TOURIST BUS", "SCHOOL VEHICLE", "FACTORY BUS",
+    "TRACTOR", "MINI LORRY", "TEMPO",
 }
 
 def find_csv() -> Path:
@@ -79,11 +86,43 @@ def main():
         h3_indices = [h3.latlng_to_cell(lat, lng, H3_RESOLUTION) for lat, lng in zip(lats, lngs)]
         df = df.with_columns(pl.Series("h3_index", h3_indices))
         
+        # CIS penalty per row
+        cis_penalties = []
+        for row in df.iter_rows(named=True):
+            penalty = 0
+            jn = row.get("junction_name")
+            if jn and str(jn).strip() not in ("No Junction", "", "None"):
+                penalty += 30
+            vt = row.get("violation_type")
+            if vt:
+                try:
+                    types = json.loads(vt) if isinstance(vt, str) else [vt]
+                    if isinstance(types, str):
+                        types = [types]
+                    for t in types:
+                        tu = str(t).upper().strip()
+                        if "PARKING IN A MAIN ROAD" in tu:
+                            penalty += 25
+                        elif "DOUBLE PARKING" in tu:
+                            penalty += 20
+                        elif "PARKING OPPOSITE" in tu:
+                            penalty += 20
+                        elif any(x in tu for x in ["BUSTOP", "SCHOOL", "HOSPITAL"]):
+                            penalty += 15
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            vt_type = row.get("vehicle_type")
+            if vt_type and str(vt_type) in HEAVY_VEHICLES:
+                penalty += 10
+            cis_penalties.append(penalty)
+        df = df.with_columns(pl.Series("cis_penalty", cis_penalties))
+        
         # 4. Aggregation
         agg_df = df.group_by("h3_index").agg(
             pl.count().alias("violation_count"),
             pl.sum("vehicle_space_sqm").alias("total_space_wasted"),
             pl.sum("is_peak").alias("peak_violations"),
+            pl.sum("cis_penalty").alias("cis_penalty_total"),
             pl.mean("latitude").alias("center_lat"),
             pl.mean("longitude").alias("center_lng"),
             pl.col("vehicle_type").mode().first().alias("primary_vehicle"),
@@ -124,6 +163,20 @@ def main():
             h3_key = str(row["h3_index"])
             vehicle_breakdown: dict[str, int] = vehicle_lookup.get(h3_key, {})
             
+            # CIS
+            cis_penalty_total = float(row.get("cis_penalty_total", 0))
+            V_cis = int(row["violation_count"])
+            cis_multiplier = min(V_cis / 5.0, 3.0)
+            cis_score = round(cis_penalty_total * cis_multiplier, 1)
+            if cis_score <= 40:
+                cis_label = "Low impact"
+            elif cis_score <= 80:
+                cis_label = "Moderate — reduces lane capacity"
+            elif cis_score <= 120:
+                cis_label = "High — likely causing queues"
+            else:
+                cis_label = "Critical — intersection-level gridlock risk"
+            
             # Parse violation type
             raw_vt = str(row.get("top_violation_type", "Unknown"))
             top_type = raw_vt.strip("[]").strip("\"") if raw_vt else "Unknown"
@@ -153,6 +206,8 @@ def main():
                     "top_violation_type": top_type,
                     "police_station": str(row["police_station"]) if row.get("police_station") else "Unknown",
                     "vehicle_breakdown": vehicle_breakdown,
+                    "cis_score": cis_score,
+                    "cis_label": cis_label,
                 }
             })
             

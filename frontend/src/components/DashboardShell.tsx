@@ -51,6 +51,8 @@ interface HotspotProperties {
   top_violation_type?: string;
   police_station?: string;
   vehicle_breakdown?: Record<string, number>;
+  cis_score?: number;
+  cis_label?: string;
 }
 
 interface GeoJSONFeature {
@@ -955,6 +957,9 @@ function HoverTooltip({ info }: { info: HoverInfo }) {
         .join(", ")
     : null;
 
+  const cisScore = props.cis_score;
+  const cisLabel = props.cis_label;
+
   return (
     <div
       className="pointer-events-none absolute z-20 min-w-[280px] rounded-lg border border-zinc-800 bg-zinc-950/95 p-5 backdrop-blur-md"
@@ -998,6 +1003,19 @@ function HoverTooltip({ info }: { info: HoverInfo }) {
         )}
         {vbEntries && (
           <TooltipRow label="Top Vehicles" value={vbEntries} />
+        )}
+        {cisScore !== undefined && (
+          <div className="flex items-baseline justify-between pt-1 border-t border-zinc-800">
+            <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+              Carriageway Impact
+            </dt>
+            <dd className="text-right">
+              <span className="font-mono text-sm tabular-nums text-zinc-100">
+                {cisScore}
+              </span>
+              <span className="ml-1 text-[10px] text-zinc-500">{cisLabel}</span>
+            </dd>
+          </div>
         )}
       </dl>
     </div>

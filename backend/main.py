@@ -122,11 +122,43 @@ def process_data(hour_filter: Optional[int] = None):
     h3_indices = [h3.latlng_to_cell(lat, lng, H3_RESOLUTION) for lat, lng in zip(lats, lngs)]
     df = df.with_columns(pl.Series("h3_index", h3_indices))
     
+    # Carriageway Impact Score (CIS) penalty per row
+    cis_penalties = []
+    for row in df.iter_rows(named=True):
+        penalty = 0
+        jn = row.get("junction_name")
+        if jn and str(jn).strip() not in ("No Junction", "", "None"):
+            penalty += 30
+        vt = row.get("violation_type")
+        if vt:
+            try:
+                types = json.loads(vt) if isinstance(vt, str) else [vt]
+                if isinstance(types, str):
+                    types = [types]
+                for t in types:
+                    tu = str(t).upper().strip()
+                    if "PARKING IN A MAIN ROAD" in tu:
+                        penalty += 25
+                    elif "DOUBLE PARKING" in tu:
+                        penalty += 20
+                    elif "PARKING OPPOSITE" in tu:
+                        penalty += 20
+                    elif any(x in tu for x in ["BUSTOP", "SCHOOL", "HOSPITAL"]):
+                        penalty += 15
+            except (json.JSONDecodeError, TypeError):
+                pass
+        vt_type = row.get("vehicle_type")
+        if vt_type and str(vt_type) in HEAVY_VEHICLES:
+            penalty += 10
+        cis_penalties.append(penalty)
+    df = df.with_columns(pl.Series("cis_penalty", cis_penalties))
+    
     # Aggregation with primary vehicle type (mode)
     agg_df = df.group_by("h3_index").agg(
         pl.count().alias("violation_count"),
         pl.sum("vehicle_space_sqm").alias("total_space_wasted"),
         pl.sum("is_peak").alias("peak_violations"),
+        pl.sum("cis_penalty").alias("cis_penalty_total"),
         pl.mean("latitude").alias("center_lat"),
         pl.mean("longitude").alias("center_lng"),
         pl.col("vehicle_type").mode().first().alias("primary_vehicle"),
@@ -175,6 +207,20 @@ def _agg_to_geojson(
         base_delay = float(row["estimated_delay_mins"])
         h3_key = str(row["h3_index"])
         
+        # CIS computation
+        cis_penalty_total = float(row.get("cis_penalty_total", 0))
+        V_cis = int(row["violation_count"])
+        cis_multiplier = min(V_cis / 5.0, 3.0)
+        cis_score = round(cis_penalty_total * cis_multiplier, 1)
+        if cis_score <= 40:
+            cis_label = "Low impact"
+        elif cis_score <= 80:
+            cis_label = "Moderate — reduces lane capacity"
+        elif cis_score <= 120:
+            cis_label = "High — likely causing queues"
+        else:
+            cis_label = "Critical — intersection-level gridlock risk"
+        
         # Build vehicle breakdown dict from lookup
         vbreakdown: dict[str, int] = {}
         if vehicle_lookup and h3_key in vehicle_lookup:
@@ -212,6 +258,8 @@ def _agg_to_geojson(
                 "top_violation_type": top_type,
                 "police_station": str(row["police_station"]) if row.get("police_station") else "Unknown",
                 "vehicle_breakdown": vbreakdown,
+                "cis_score": cis_score,
+                "cis_label": cis_label,
             }
         })
     return {"type": "FeatureCollection", "features": features}
@@ -656,6 +704,60 @@ async def get_severity_ranking():
         center_lat = float(hex_df["latitude"].mean())
         center_lng = float(hex_df["longitude"].mean())
 
+        # ------------------------------------------------------------------
+        # Carriageway Impact Score (CIS)
+        # ------------------------------------------------------------------
+        cis_base = 0
+
+        # Check junction_name
+        junction_mode_val = hex_df["junction_name"].mode().first()
+        if junction_mode_val and str(junction_mode_val).strip() not in ("No Junction", "", "None"):
+            cis_base += 30
+
+        # Check violation_type for aggravating factors
+        heavy_vehicle_count = 0
+        for raw_vt, raw_vt_type in zip(
+            hex_df["violation_type"].to_list(),
+            hex_df["vehicle_type"].to_list(),
+        ):
+            if raw_vt:
+                try:
+                    types = json.loads(raw_vt) if isinstance(raw_vt, str) else [raw_vt]
+                    if isinstance(types, str):
+                        types = [types]
+                    for t in types:
+                        t_upper = str(t).upper().strip()
+                        if "PARKING IN A MAIN ROAD" in t_upper:
+                            cis_base += 25
+                        elif "DOUBLE PARKING" in t_upper:
+                            cis_base += 20
+                        elif "PARKING OPPOSITE" in t_upper:
+                            cis_base += 20
+                        elif "BUSTOP" in t_upper or "SCHOOL" in t_upper or "HOSPITAL" in t_upper:
+                            cis_base += 15
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            # Check heavy vehicle
+            if raw_vt_type and str(raw_vt_type) in HEAVY_VEHICLES:
+                heavy_vehicle_count += 1
+
+        cis_base += heavy_vehicle_count * 10
+
+        # Multiply by (V / 5), capped at 3x
+        cis_multiplier = min(V / 5.0, 3.0)
+        cis_score = round(cis_base * cis_multiplier, 1)
+
+        # Impact label
+        if cis_score <= 40:
+            cis_label = "Low impact"
+        elif cis_score <= 80:
+            cis_label = "Moderate — reduces lane capacity"
+        elif cis_score <= 120:
+            cis_label = "High — likely causing queues"
+        else:
+            cis_label = "Critical — intersection-level gridlock risk"
+
         rankings.append({
             "h3_index": h3_key,
             "place_name": place_name or h3_key[:8],
@@ -663,6 +765,8 @@ async def get_severity_ranking():
             "badges": badges,
             "police_station": police_station,
             "center": [center_lng, center_lat],
+            "cis_score": cis_score,
+            "cis_label": cis_label,
         })
 
     rankings.sort(key=lambda x: x["severity_score"], reverse=True)

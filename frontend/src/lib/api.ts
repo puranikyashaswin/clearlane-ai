@@ -31,6 +31,8 @@ export interface HotspotProperties {
   top_violation_type?: string;
   police_station?: string;
   vehicle_breakdown?: Record<string, number>;
+  cis_score?: number;
+  cis_label?: string;
 }
 
 export interface SeverityRankingItem {

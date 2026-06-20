@@ -142,6 +142,14 @@ function RankedZoneRow({ item, onPanTo, expanded, timeData, timeLoading, onToggl
             <span className="text-zinc-700">|</span>
             <span className="truncate">{item.police_station}</span>
           </div>
+          {item.cis_score !== undefined && (
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <span className="font-mono text-[10px] tabular-nums text-zinc-500">
+                CIS: <span className="text-zinc-400">{item.cis_score.toFixed(1)}</span>
+              </span>
+              <span className="text-[9px] text-zinc-600">{item.cis_label}</span>
+            </div>
+          )}
           {item.badges.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
               {item.badges.map((b) => (
