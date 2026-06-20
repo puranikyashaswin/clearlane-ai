@@ -17,3 +17,4 @@
 - Dispatch notifications must be information-dense, Bloomberg-terminal style: no blinking, pulsing, truck animations, ETA countdowns, or status timelines. Confidence: 0.80
 - Use severity-specific icons for notifications: AlertTriangle (critical), AlertCircle (high), Info (normal). Confidence: 0.70
 - Use shadcn/ui components everywhere possible for all UI elements (buttons, cards, dialogs, tooltips, dropdowns). Confidence: 0.70
+- Remove any robot/assistant avatar icons from the chat UI — no bot icons in the chat interface. Confidence: 0.70

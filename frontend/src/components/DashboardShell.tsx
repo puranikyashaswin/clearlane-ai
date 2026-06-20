@@ -47,6 +47,9 @@ interface HotspotProperties {
   center: [number, number];
   primary_vehicle: string;
   place_name?: string | null;
+  top_violation_type?: string;
+  police_station?: string;
+  vehicle_breakdown?: Record<string, number>;
 }
 
 interface GeoJSONFeature {
@@ -287,6 +290,10 @@ export function DashboardShell({
 
   const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
 
+  // Feature 1: Filter state
+  const [violationTypeFilter, setViolationTypeFilter] = useState<string>("all");
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState<string>("all");
+
   // useTransition for horizon + hour changes. The heavy work (deck.gl
   // re-derive + new fetch) can take 80–150ms; we keep the UI responsive
   // by marking the resulting render as a low-priority transition.
@@ -403,16 +410,45 @@ export function DashboardShell({
     [liveFeed, baseFeed, selectedHour]
   );
 
+  // Feature 1: Client-side filter for violation type and vehicle type
+  const filteredData = useMemo(() => {
+    if (!data) return undefined;
+    if (violationTypeFilter === "all" && vehicleTypeFilter === "all") return data;
+
+    const filtered = {
+      ...data,
+      features: data.features.filter((f) => {
+        if (violationTypeFilter !== "all") {
+          const topVt = f.properties.top_violation_type ?? "";
+          if (!topVt.toLowerCase().includes(violationTypeFilter.toLowerCase())) {
+            // Also check vehicle_breakdown keys for matching violation type
+            // But mostly we match on top_violation_type
+            return false;
+          }
+        }
+        if (vehicleTypeFilter !== "all") {
+          const pv = f.properties.primary_vehicle ?? "";
+          if (pv.toLowerCase() !== vehicleTypeFilter.toLowerCase()) {
+            return false;
+          }
+        }
+        return true;
+      }),
+    };
+    return filtered;
+  }, [data, violationTypeFilter, vehicleTypeFilter]);
+
   // Layers memoized with primitive-only deps so the deck.gl layer instances
   // only rebuild when something user-visible changed.
   const layers = useMemo<Layer[]>(() => {
     const baseLayers: Layer[] = [];
 
-    if (data) {
+    const layerData = filteredData ?? data;
+    if (layerData) {
       baseLayers.push(
         new GeoJsonLayer<HotspotProperties>({
           id: "geojson-layer",
-          data: data,
+          data: layerData,
           filled: true,
           extruded: true,
           wireframe: true,
@@ -632,6 +668,50 @@ export function DashboardShell({
 
         <Divider />
 
+        {/* Feature 1: Filter dropdowns */}
+        <section className="px-6 py-4 space-y-3">
+          <h3 className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+            Filters
+          </h3>
+          <div className="space-y-2">
+            <select
+              value={violationTypeFilter}
+              onChange={(e) => setViolationTypeFilter(e.target.value)}
+              className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 outline-none focus:border-zinc-600"
+            >
+              <option value="all">All Violation Types</option>
+              <option value="WRONG PARKING">Wrong Parking</option>
+              <option value="NO PARKING">No Parking</option>
+              <option value="PARKING IN A MAIN ROAD">Parking in Main Road</option>
+              <option value="DOUBLE PARKING">Double Parking</option>
+              <option value="PARKING OPPOSITE TO ANOTHER PARKED VEHICLE">Parking Opposite</option>
+              <option value="PARKING NEAR BUSTOP/SCHOOL/HOSPITAL ETC">Near Bus Stop/School</option>
+            </select>
+            <select
+              value={vehicleTypeFilter}
+              onChange={(e) => setVehicleTypeFilter(e.target.value)}
+              className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 outline-none focus:border-zinc-600"
+            >
+              <option value="all">All Vehicle Types</option>
+              <option value="CAR">Car</option>
+              <option value="SCOOTER">Scooter</option>
+              <option value="MOTOR CYCLE">Motor Cycle</option>
+              <option value="PASSENGER AUTO">Passenger Auto</option>
+              <option value="GOODS AUTO">Goods Auto</option>
+              <option value="BUS (BMTC/KSRTC)">Bus</option>
+              <option value="LORRY/GOODS VEHICLE">Lorry/Goods Vehicle</option>
+              <option value="VAN">Van</option>
+            </select>
+          </div>
+          {(violationTypeFilter !== "all" || vehicleTypeFilter !== "all") && (
+            <p className="text-[10px] text-zinc-600">
+              {filteredData?.features.length ?? 0} hotspots match
+            </p>
+          )}
+        </section>
+
+        <Divider />
+
         <TimeSlider value={selectedHour} onChange={handleHourChange} />
 
         <Divider />
@@ -842,9 +922,25 @@ function HoverTooltip({ info }: { info: HoverInfo }) {
   const showPredicted =
     typeof props.predicted_delay === "number" &&
     props.predicted_delay !== props.estimated_delay_mins;
+
+  const vt = props.top_violation_type?.trim();
+  const cleanedVt = vt
+    ? vt.replace(/^\["|"\]$/g, "").replace(/","/g, ", ")
+    : null;
+
+  // Build vehicle breakdown string
+  const vb = props.vehicle_breakdown;
+  const vbEntries = vb && Object.keys(vb).length > 0
+    ? Object.entries(vb)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([t, c]) => `${t}: ${c}`)
+        .join(", ")
+    : null;
+
   return (
     <div
-      className="pointer-events-none absolute z-20 min-w-[260px] rounded-lg border border-zinc-800 bg-zinc-950/95 p-5 backdrop-blur-md"
+      className="pointer-events-none absolute z-20 min-w-[280px] rounded-lg border border-zinc-800 bg-zinc-950/95 p-5 backdrop-blur-md"
       style={{ left: info.x + 12, top: info.y + 12 }}
     >
       <div className="mb-1 flex items-center gap-2">
@@ -877,6 +973,15 @@ function HoverTooltip({ info }: { info: HoverInfo }) {
           />
         )}
         <TooltipRow label="Vehicle" value={props.primary_vehicle || "Mixed"} />
+        {cleanedVt && (
+          <TooltipRow label="Violation Type" value={cleanedVt} />
+        )}
+        {props.police_station && props.police_station !== "Unknown" && (
+          <TooltipRow label="Police Station" value={props.police_station} />
+        )}
+        {vbEntries && (
+          <TooltipRow label="Top Vehicles" value={vbEntries} />
+        )}
       </dl>
     </div>
   );

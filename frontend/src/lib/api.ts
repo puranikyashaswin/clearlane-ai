@@ -28,6 +28,39 @@ export interface HotspotProperties {
   center: [number, number];
   primary_vehicle: string;
   place_name: string | null;
+  top_violation_type?: string;
+  police_station?: string;
+  vehicle_breakdown?: Record<string, number>;
+}
+
+export interface SeverityRankingItem {
+  rank: number;
+  place_name: string;
+  severity_score: number;
+  badges: string[];
+  police_station: string;
+  h3_index: string;
+  center: [number, number];
+  cis_score?: number;
+  cis_label?: string;
+}
+
+export interface HotspotTimeData {
+  hourly: { hour: number; count: number }[];
+  peak_window: { start: number; end: number; count: number };
+  weekday_distribution: { day: string; count: number }[];
+  recommendation: string;
+}
+
+export interface DarkSpot {
+  h3_index: string;
+  place_name: string;
+  severity_score: number;
+  unsent_ratio: number;
+  unvalidated_ratio: number;
+  rejected_ratio: number;
+  primary_label: string;
+  center: [number, number];
 }
 
 export type GeoJSON = GeoJSON.FeatureCollection<
@@ -165,6 +198,33 @@ export async function fetchAnalytics(
   if (refresh) params.set("refresh", "true");
   const url = `${API_BASE}/api/analytics?${params.toString()}`;
   return fetchOrDemo(url, "/demo-data/analytics.json");
+}
+
+export async function fetchSeverityRanking(): Promise<SeverityRankingItem[]> {
+  return fetchOrDemo<SeverityRankingItem[]>(
+    `${API_BASE}/api/severity-ranking`,
+    "/demo-data/severity-ranking.json",
+  );
+}
+
+export async function fetchHotspotTimes(
+  h3Index: string,
+): Promise<HotspotTimeData | null> {
+  try {
+    return await fetchOrDemo<HotspotTimeData>(
+      `${API_BASE}/api/hotspot-times?h3_index=${encodeURIComponent(h3Index)}`,
+      `/demo-data/hotspot-times/${h3Index}.json`,
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchDarkSpots(): Promise<DarkSpot[]> {
+  return fetchOrDemo<DarkSpot[]>(
+    `${API_BASE}/api/dark-spots`,
+    "/demo-data/dark-spots.json",
+  );
 }
 
 /** Fetch the comprehensive data summary used for LLM chat context. */

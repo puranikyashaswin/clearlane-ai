@@ -85,7 +85,11 @@ def main():
             pl.sum("vehicle_space_sqm").alias("total_space_wasted"),
             pl.sum("is_peak").alias("peak_violations"),
             pl.mean("latitude").alias("center_lat"),
-            pl.mean("longitude").alias("center_lng")
+            pl.mean("longitude").alias("center_lng"),
+            pl.col("vehicle_type").mode().first().alias("primary_vehicle"),
+            pl.col("location").fill_null("").str.split(",").list.first().mode().first().alias("place_name"),
+            pl.col("violation_type").mode().first().alias("top_violation_type"),
+            pl.col("police_station").mode().first().alias("police_station"),
         )
         
         # 5. Proxy Congestion Index (PCI) Math
@@ -97,12 +101,34 @@ def main():
         
         logger.info("hexagons_generated", unique_hexes=len(agg_df))
         
-        # 6. Build GeoJSON
+        # 6. Vehicle type breakdown per hex
+        vehicle_counts = (
+            df.group_by(["h3_index", "vehicle_type"])
+            .agg(pl.len().alias("count"))
+        )
+        vehicle_lookup: dict[str, dict[str, int]] = {}
+        for row in vehicle_counts.iter_rows(named=True):
+            key = str(row["h3_index"])
+            if key not in vehicle_lookup:
+                vehicle_lookup[key] = {}
+            vtype = str(row["vehicle_type"]) if row["vehicle_type"] else "UNKNOWN"
+            vehicle_lookup[key][vtype] = int(row["count"])
+        
+        # 7. Build GeoJSON
         features = []
         for row in agg_df.iter_rows(named=True):
             boundary = h3.cell_to_boundary(row["h3_index"])
             # GeoJSON requires [lng, lat], H3 returns (lat, lng)
             polygon_coords = [[p[1], p[0]] for p in boundary]
+            
+            h3_key = str(row["h3_index"])
+            vehicle_breakdown: dict[str, int] = vehicle_lookup.get(h3_key, {})
+            
+            # Parse violation type
+            raw_vt = str(row.get("top_violation_type", "Unknown"))
+            top_type = raw_vt.strip("[]").strip("\"") if raw_vt else "Unknown"
+            if top_type.startswith("\"") and top_type.endswith("\""):
+                top_type = top_type.strip("\"")
             
             features.append({
                 "type": "Feature",
@@ -111,12 +137,22 @@ def main():
                     "coordinates": [polygon_coords]
                 },
                 "properties": {
-                    "h3_index": row["h3_index"],
+                    "h3_index": h3_key,
                     "violation_count": int(row["violation_count"]),
                     "total_space_wasted": float(row["total_space_wasted"]),
                     "peak_violations": int(row["peak_violations"]),
                     "estimated_delay_mins": float(row["estimated_delay_mins"]),
-                    "center": [float(row["center_lng"]), float(row["center_lat"])]
+                    "center": [float(row["center_lng"]), float(row["center_lat"])],
+                    "primary_vehicle": str(row["primary_vehicle"]) if row["primary_vehicle"] else "Mixed",
+                    "place_name": (
+                        str(row["place_name"]).strip()
+                        if row.get("place_name") is not None
+                        and str(row["place_name"]).strip()
+                        else None
+                    ),
+                    "top_violation_type": top_type,
+                    "police_station": str(row["police_station"]) if row.get("police_station") else "Unknown",
+                    "vehicle_breakdown": vehicle_breakdown,
                 }
             })
             

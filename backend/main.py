@@ -130,7 +130,9 @@ def process_data(hour_filter: Optional[int] = None):
         pl.mean("latitude").alias("center_lat"),
         pl.mean("longitude").alias("center_lng"),
         pl.col("vehicle_type").mode().first().alias("primary_vehicle"),
-        pl.col("location").fill_null("").str.split(",").list.first().mode().first().alias("place_name")
+        pl.col("location").fill_null("").str.split(",").list.first().mode().first().alias("place_name"),
+        pl.col("violation_type").mode().first().alias("top_violation_type"),
+        pl.col("police_station").mode().first().alias("police_station"),
     )
     
     # Proxy Congestion Index (PCI)
@@ -140,9 +142,25 @@ def process_data(hour_filter: Optional[int] = None):
         (pl.col("capacity_drop") * pl.col("peak_violations") * 15.0).alias("estimated_delay_mins")
     )
     
-    return agg_df
+    # Vehicle type breakdown per hex
+    vehicle_counts = (
+        df.group_by(["h3_index", "vehicle_type"])
+        .agg(pl.len().alias("count"))
+    )
+    vehicle_lookup: dict[str, dict[str, int]] = {}
+    for row in vehicle_counts.iter_rows(named=True):
+        key = str(row["h3_index"])
+        if key not in vehicle_lookup:
+            vehicle_lookup[key] = {}
+        vtype = str(row["vehicle_type"]) if row["vehicle_type"] else "UNKNOWN"
+        vehicle_lookup[key][vtype] = int(row["count"])
+    
+    return {"agg_df": agg_df, "vehicle_lookup": vehicle_lookup}
 
-def _agg_to_geojson(agg_df: pl.DataFrame, delay_multiplier: float = 1.0) -> dict:
+def _agg_to_geojson(
+    agg_df: pl.DataFrame, delay_multiplier: float = 1.0,
+    vehicle_lookup: dict[str, dict[str, int]] | None = None,
+) -> dict:
     """Convert the aggregated Polars DataFrame into a GeoJSON FeatureCollection.
 
     `delay_multiplier` scales `estimated_delay_mins` while leaving the historical
@@ -155,6 +173,21 @@ def _agg_to_geojson(agg_df: pl.DataFrame, delay_multiplier: float = 1.0) -> dict
         polygon_coords = [[p[1], p[0]] for p in boundary]  # Swap to [lng, lat]
 
         base_delay = float(row["estimated_delay_mins"])
+        h3_key = str(row["h3_index"])
+        
+        # Build vehicle breakdown dict from lookup
+        vbreakdown: dict[str, int] = {}
+        if vehicle_lookup and h3_key in vehicle_lookup:
+            vbreakdown = vehicle_lookup[h3_key]
+        
+        # Parse violation_type JSON to extract individual types
+        raw_vt = str(row.get("top_violation_type", "Unknown"))
+        # Clean up JSON array formatting if present
+        top_type = raw_vt.strip("[]").strip("\"") if raw_vt else "Unknown"
+        # Handle cases like ["WRONG PARKING","NO PARKING"] -> take first
+        if top_type.startswith("\"") and top_type.endswith("\""):
+            top_type = top_type.strip("\"")
+        
         features.append({
             "type": "Feature",
             "geometry": {
@@ -162,7 +195,7 @@ def _agg_to_geojson(agg_df: pl.DataFrame, delay_multiplier: float = 1.0) -> dict
                 "coordinates": [polygon_coords]
             },
             "properties": {
-                "h3_index": row["h3_index"],
+                "h3_index": h3_key,
                 "violation_count": int(row["violation_count"]),
                 "total_space_wasted": float(row["total_space_wasted"]),
                 "peak_violations": int(row["peak_violations"]),
@@ -175,7 +208,10 @@ def _agg_to_geojson(agg_df: pl.DataFrame, delay_multiplier: float = 1.0) -> dict
                     if row.get("place_name") is not None
                     and str(row["place_name"]).strip()
                     else None
-                )
+                ),
+                "top_violation_type": top_type,
+                "police_station": str(row["police_station"]) if row.get("police_station") else "Unknown",
+                "vehicle_breakdown": vbreakdown,
             }
         })
     return {"type": "FeatureCollection", "features": features}
@@ -186,8 +222,10 @@ async def get_hotspots(hour: Optional[int] = Query(None, ge=0, le=23)):
     """Get GeoJSON hotspots, optionally filtered by hour."""
     logger.info("api_hotspots_called", hour_filter=hour)
 
-    agg_df = process_data(hour_filter=hour)
-    geojson = _agg_to_geojson(agg_df)
+    result = process_data(hour_filter=hour)
+    agg_df = result["agg_df"]
+    vehicle_lookup = result["vehicle_lookup"]
+    geojson = _agg_to_geojson(agg_df, vehicle_lookup=vehicle_lookup)
     logger.info("hotspots_generated", count=len(geojson["features"]), hour_filter=hour)
 
     return JSONResponse(content=geojson)
@@ -197,7 +235,8 @@ async def get_stats(hour: Optional[int] = Query(None, ge=0, le=23)):
     """Get dashboard statistics, optionally filtered by hour."""
     logger.info("api_stats_called", hour_filter=hour)
     
-    agg_df = process_data(hour_filter=hour)
+    result = process_data(hour_filter=hour)
+    agg_df = result["agg_df"]
     
     total_hotspots = len(agg_df)
     total_violations = int(agg_df["violation_count"].sum())
@@ -218,7 +257,8 @@ async def get_patrol_route(hour: Optional[int] = Query(None, ge=0, le=23)):
     """Get top 5 highest-impact hexagons as patrol waypoints."""
     logger.info("api_patrol_route_called", hour_filter=hour)
 
-    agg_df = process_data(hour_filter=hour)
+    result = process_data(hour_filter=hour)
+    agg_df = result["agg_df"]
 
     top5 = (
         agg_df.sort("estimated_delay_mins", descending=True)
@@ -258,32 +298,30 @@ async def predict_horizon(hour: int = Query(8, ge=0, le=23), horizon: str = "now
                               worse than historical averages.
     """
     if horizon == "now":
-        agg_df = process_data(hour_filter=hour)
-        logger.info("predict_horizon_now", hour=hour, rows=len(agg_df))
-        return JSONResponse(content=_agg_to_geojson(agg_df, delay_multiplier=1.0))
+        result = process_data(hour_filter=hour)
+        return JSONResponse(content=_agg_to_geojson(result["agg_df"], delay_multiplier=1.0, vehicle_lookup=result["vehicle_lookup"]))
 
     if horizon == "+15m":
-        agg_df = process_data(hour_filter=hour)
-        logger.info("predict_horizon_15m", hour=hour, rows=len(agg_df))
-        return JSONResponse(content=_agg_to_geojson(agg_df, delay_multiplier=1.15))
+        result = process_data(hour_filter=hour)
+        return JSONResponse(content=_agg_to_geojson(result["agg_df"], delay_multiplier=1.15, vehicle_lookup=result["vehicle_lookup"]))
 
     if horizon in ("+30m", "+60m"):
         minutes = 30 if horizon == "+30m" else 60
         target_hour = (hour + minutes // 60) % 24
-        agg_df = process_data(hour_filter=target_hour)
+        result = process_data(hour_filter=target_hour)
         logger.info(
             "predict_horizon_time_machine",
             hour=hour,
             target_hour=target_hour,
             horizon=horizon,
-            rows=len(agg_df),
+            rows=len(result["agg_df"]),
         )
-        return JSONResponse(content=_agg_to_geojson(agg_df, delay_multiplier=1.1))
+        return JSONResponse(content=_agg_to_geojson(result["agg_df"], delay_multiplier=1.1, vehicle_lookup=result["vehicle_lookup"]))
 
     # Unknown horizon string — fall back to "now" semantics rather than 500ing.
     logger.warning("predict_horizon_unknown", horizon=horizon, hour=hour)
-    agg_df = process_data(hour_filter=hour)
-    return JSONResponse(content=_agg_to_geojson(agg_df, delay_multiplier=1.0))
+    result = process_data(hour_filter=hour)
+    return JSONResponse(content=_agg_to_geojson(result["agg_df"], delay_multiplier=1.0, vehicle_lookup=result["vehicle_lookup"]))
 
 
 # ---------------------------------------------------------------------------

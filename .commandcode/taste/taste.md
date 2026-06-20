@@ -19,5 +19,9 @@
 - Avoid em dashes in all written content; use commas, colons, or sentence breaks instead. Confidence: 0.70
 - Write all copy and documentation in a polished, human-written style — no AI-typical phrasing, no markdown artifacts in final output. Confidence: 0.70
 
+# workflow
+- Commit working state before starting any major feature work so there's a rollback point. Confidence: 0.70
+- Before implementing features, first provide a detailed plan with hierarchy, time estimates, and what will be built in what order. Confidence: 0.70
+
 # frontend
 See [frontend/taste.md](frontend/taste.md)
