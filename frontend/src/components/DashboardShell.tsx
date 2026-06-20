@@ -528,7 +528,7 @@ export function DashboardShell({
           : "+60m";
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-zinc-950 font-sans text-zinc-100">
+    <div className="relative h-full w-full overflow-hidden bg-zinc-950 font-sans text-zinc-100 pb-28">
       {/* === Top Bar === */}
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-5 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -600,7 +600,7 @@ export function DashboardShell({
       </header>
 
       {/* === Left Sidebar === */}
-      <aside className="scroll-thin fixed bottom-0 left-0 top-14 z-30 flex w-80 flex-col overflow-y-auto border-r border-zinc-800 bg-zinc-950/80 backdrop-blur-md">
+      <aside className="scroll-thin fixed bottom-0 left-0 top-14 z-30 flex w-80 flex-col overflow-y-auto border-r border-zinc-800 bg-zinc-950/80 backdrop-blur-md pb-28">
         <section className="p-6">
           <header className="mb-5 flex items-center gap-2">
             <Activity className="h-3.5 w-3.5 text-zinc-500" />
@@ -757,7 +757,7 @@ export function DashboardShell({
           </span>
         </div>
 
-        <div className="scroll-thin flex-1 space-y-3 overflow-y-auto p-4">
+        <div className="scroll-thin flex-1 space-y-3 overflow-y-auto p-4 pb-28">
           {dispatchFeed.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center text-zinc-600">
               <Send className="mb-3 h-5 w-5" />

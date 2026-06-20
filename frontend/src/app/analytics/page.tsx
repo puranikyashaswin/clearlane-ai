@@ -328,7 +328,7 @@ export default function AnalyticsPage() {
   }, [data, heatMax]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
+    <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100 pb-28">
       {/* === Top Bar === */}
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-5 backdrop-blur-md">
         <div className="flex items-center gap-3">
