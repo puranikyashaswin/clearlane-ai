@@ -27,16 +27,16 @@ interface ExportActionsPanelProps {
    */
   className?: string;
   /**
-   * Mouse enter handler — used to keep the panel open during hover-card interaction.
+   * Mouse enter handler, used to keep the panel open during hover-card interaction.
    */
   onMouseEnter?: () => void;
   /**
-   * Mouse leave handler — used to dismiss the panel when the cursor leaves the card.
+   * Mouse leave handler, used to dismiss the panel when the cursor leaves the card.
    */
   onMouseLeave?: () => void;
 }
 
-// MG Road — central Bengaluru — used as the fallback origin when geolocation
+// MG Road, central Bengaluru. Used as the fallback origin when geolocation
 // is denied, unavailable, or the user is on an insecure context.
 const FALLBACK_ORIGIN: LatLng = { lat: 12.9756, lng: 77.6068 };
 
@@ -77,7 +77,7 @@ export function ExportActionsPanel({
           setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         },
         () => {
-          // Denied / unavailable — keep the fallback.
+          // Denied or unavailable, keep the fallback.
         },
         { enableHighAccuracy: false, timeout: 4000, maximumAge: 60_000 }
       );
@@ -170,4 +170,4 @@ export function ExportActionsPanel({
   );
 }
 
-export default ExportActionsPanel;
+export default ExportActionsPanel;;

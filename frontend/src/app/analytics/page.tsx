@@ -18,7 +18,6 @@ import {
   ReferenceLine,
 } from "recharts";
 import {
-  ArrowLeft,
   BarChart3,
   Calendar,
   Car,
@@ -40,7 +39,6 @@ import "rc-slider/assets/index.css";
 import { HorizonControl, type PredictionHorizon } from "@/components/HorizonControl";
 import { fetchAnalytics } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
-import Logo from "@/components/Logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -268,7 +266,7 @@ export default function AnalyticsPage() {
       }));
     }
     const rawValues = raw.map((p) => p[key]);
-    // Catmull-Rom interpolation — used ONLY for the smooth curve overlay
+    // Catmull-Rom interpolation, used ONLY for the smooth curve overlay
     const sourcePoints: InterpPoint[] = raw.map((p) => ({ x: p.hour, y: p[key] }));
     const dense = catmullRomInterpolate(sourcePoints, 8);
     // Sample the dense interpolation at each integer hour
@@ -284,7 +282,7 @@ export default function AnalyticsPage() {
     }
     const trend = sma(rawValues, 3);
     const trendForward = sma(rawValues, 4);
-    // Deterministic 24-point array — one entry per real hour
+    // Deterministic 24-point array, one entry per real hour
     return raw.map((p, i) => ({
       hour: p.hour,
       label: `${String(p.hour).padStart(2, "0")}:00`,
@@ -309,7 +307,7 @@ export default function AnalyticsPage() {
     const top2 = data.vehicle_breakdown.slice(0, 2);
     const total = data.vehicle_breakdown.reduce((a, v) => a + v.count, 0);
     const top2Pct = total > 0 ? Math.round(((top2[0]?.count ?? 0) + (top2[1]?.count ?? 0)) / total * 100) : 0;
-    return `Scooters and cars account for ${top2Pct}% of all violations — prioritize two-wheeler enforcement zones.`;
+    return `Scooters and cars account for ${top2Pct}% of all violations. Prioritize two-wheeler enforcement zones.`;
   }, [data]);
 
   // Junction footer insight
@@ -368,49 +366,13 @@ export default function AnalyticsPage() {
   }, [data]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100 pb-32">
-      {/* === Top Bar === */}
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-5 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-100">
-            <ArrowLeft className="h-3 w-3" /> Map
-          </Link>
-          <span className="mx-2 h-5 w-px bg-zinc-800" />
-          <Logo />
-          <div className="leading-tight">
-            <div className="text-sm font-medium text-zinc-100">ClearLane</div>
-            <div className="text-[10px] uppercase tracking-wider text-zinc-500">Analytics Terminal</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 font-mono tabular-nums">
-          <span className="text-xs text-zinc-500">IST</span>
-          <span className="text-sm font-medium text-zinc-100">{istTime}</span>
-          <span className="text-zinc-700">·</span>
-          <span className="text-xs text-zinc-500">{istDate}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-zinc-400">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-500/40" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-cyan-500" />
-            </span>
-            Backend Online
-          </span>
-          <button type="button" onClick={() => load(true)} className="flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-zinc-300 transition hover:bg-zinc-800">
-            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} /> Refresh
-          </button>
-          <button type="button" onClick={handleExport} className="flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-zinc-300 transition hover:bg-zinc-700">
-            <Download className="h-3 w-3" /> Export
-          </button>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100 pb-32 pt-20">
       {/* === Forecast Banner === */}
       {horizon !== "now" && (
         <div className="mx-auto mt-4 max-w-[1600px] px-6">
           <div className="flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-4 py-2.5 font-mono text-xs text-violet-300">
             <Sparkles className="h-3.5 w-3.5 shrink-0 text-violet-400" />
-            Forecast Mode: +{horizon === "15m" ? "15" : horizon === "30m" ? "30" : "60"} minutes — Showing predicted violation density based on historical patterns at this time window shifted forward.
+            Forecast Mode: +{horizon === "15m" ? "15" : horizon === "30m" ? "30" : "60"} minutes. Showing predicted violation density based on historical patterns at this time window shifted forward.
           </div>
         </div>
       )}
@@ -552,7 +514,7 @@ export default function AnalyticsPage() {
                           }}
                         />
                       )}
-                      {/* Smooth area curve — uses pre-smoothed values from Catmull-Rom */}
+                      {/* Smooth area curve, uses pre-smoothed values from Catmull-Rom */}
                       <Area type="monotone" dataKey={`${chartMetric}_smoothed`} stroke={COLORS.accent} strokeWidth={1.5}
                         fill="url(#areaGradient)" dot={{ r: 2, fill: COLORS.accent, stroke: "none" }}
                         activeDot={{ r: 4, fill: COLORS.accent, stroke: COLORS.accentDeep, strokeWidth: 2 }} />
@@ -682,7 +644,7 @@ export default function AnalyticsPage() {
                                 }}
                                 onMouseEnter={() => setHoveredCell({ day: dIdx, hour: h })}
                                 onMouseLeave={() => setHoveredCell(null)}
-                                title={`${DAYS_FULL[dIdx]} ${String(h).padStart(2, "0")}:00 — ${fmtInt(density)} violations`}
+                                title={`${DAYS_FULL[dIdx]} ${String(h).padStart(2, "0")}:00, ${fmtInt(density)} violations`}
                               />
                             );
                           })}
@@ -810,7 +772,7 @@ function ControlBar({ dayFilter, onDayChange, timeRange, onTimeRangeChange, hori
             <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-400">Time Window</h2>
           </div>
           <span className="font-mono text-xs font-medium text-zinc-200">
-            {String(timeRange[0]).padStart(2, "0")}:00 &mdash; {String(timeRange[1]).padStart(2, "0")}:00
+            {String(timeRange[0]).padStart(2, "0")}:00 &ndash; {String(timeRange[1]).padStart(2, "0")}:00
           </span>
         </div>
         <Slider range min={0} max={23} value={timeRange}
@@ -894,7 +856,7 @@ function MonoTooltip({ active, payload, label, suffix }: MonoTooltipProps) {
 
 function ChartTooltip({ active, payload, label, metric }: MonoTooltipProps & { metric: string }) {
   if (!active || !payload || payload.length === 0) return null;
-  // Filter out the smoothed-area entry — bars already show "Actual" values
+  // Filter out the smoothed-area entry. Bars already show "Actual" values
   const visible = payload.filter(
     (entry) => typeof entry.dataKey !== "string" || !entry.dataKey.endsWith("_smoothed"),
   );

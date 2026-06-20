@@ -241,7 +241,7 @@ export function HexMap({
       );
     }
 
-    // === Hotspot label layers — render on top in BOTH hex and contour views ===
+    // === Hotspot label layers, render on top in BOTH hex and contour views ===
 
     // Dot markers at each hotspot coordinate
     result.push(

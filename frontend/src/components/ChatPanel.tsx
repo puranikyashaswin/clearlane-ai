@@ -48,7 +48,7 @@ function buildContextDocument(summary: Record<string, any> | null): string {
   lines.push("HOURLY VIOLATION DISTRIBUTION:");
   const hours = (summary.hourly_distribution as Record<string, unknown>[]) ?? [];
   for (const h of hours) {
-    lines.push(`  ${String(h.hour).padStart(2, "0")}:00 — ${(h.violations as number).toLocaleString()} violations`);
+    lines.push(`  ${String(h.hour).padStart(2, "0")}:00, ${(h.violations as number).toLocaleString()} violations`);
   }
   lines.push("");
 
@@ -211,7 +211,7 @@ export function ChatPanel() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
       <div className="w-full max-w-2xl px-4 pb-4 pointer-events-auto">
-        {/* Message history — collapsible */}
+        {/* Message history, collapsible */}
         {hasMessages && (
           <div className="mb-2 rounded-2xl border border-zinc-700/60 bg-zinc-950/90 shadow-xl shadow-black/30 backdrop-blur-xl">
             <button
@@ -274,7 +274,7 @@ export function ChatPanel() {
           </div>
         )}
 
-        {/* Input bar — always visible */}
+        {/* Input bar, always visible */}
         <div className="flex items-end gap-2 rounded-2xl border border-zinc-700/60 bg-zinc-950/90 px-4 py-3 shadow-xl shadow-black/30 backdrop-blur-xl">
           <textarea
             ref={inputRef}

@@ -3,6 +3,7 @@ import { Inter, Dancing_Script } from "next/font/google";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 import { SplashScreen } from "@/components/SplashScreen";
+import { FloatingHeader } from "@/components/ui/floating-header";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -18,18 +19,18 @@ const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clearlane.vercel.ap
 
 export const metadata: Metadata = {
   title: {
-    default: "ClearLane AI — Predictive Parking Intelligence for Bengaluru",
+    default: "ClearLane AI: Predictive Parking Intelligence for Bengaluru",
     template: "%s | ClearLane AI",
   },
   description:
     "AI-powered platform that detects illegal parking hotspots and forecasts congestion 60 minutes ahead. Built for Bengaluru Traffic Police on 298,000+ real violation records.",
   manifest: "/manifest.json",
   icons: {
-    icon: [{ url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" }],
+    icon: [{ url: "/logo.png", sizes: "32x32", type: "image/png" }],
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "ClearLane AI — Predictive Parking Intelligence for Bengaluru",
+    title: "ClearLane AI: Predictive Parking Intelligence for Bengaluru",
     description:
       "AI-powered parking intelligence platform. Detects illegal parking hotspots, forecasts congestion 60 minutes ahead, and generates optimized patrol routes.",
     url: baseUrl,
@@ -39,7 +40,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "ClearLane AI — Predictive Parking Intelligence",
+    title: "ClearLane AI: Predictive Parking Intelligence",
     description:
       "AI-powered platform that detects illegal parking hotspots and forecasts congestion 60 minutes ahead for Bengaluru Traffic Police.",
   },
@@ -56,6 +57,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${dancingScript.variable} h-full antialiased`} data-scroll-behavior="smooth">
       <body className="min-h-full bg-zinc-950 text-zinc-100">
         <SplashScreen />
+        <FloatingHeader />
         {children}
       </body>
     </html>
