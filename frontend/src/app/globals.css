@@ -4,6 +4,21 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --color-background: #09090b;
   --color-foreground: #f4f4f5;
+  --color-popover: #18181b;
+  --color-popover-foreground: #f4f4f5;
+  --color-accent: #27272a;
+  --color-accent-foreground: #f4f4f5;
+  --color-muted: #27272a;
+  --color-muted-foreground: #71717a;
+  --color-border: #27272a;
+  --color-input: #27272a;
+  --color-ring: #3f3f46;
+  --color-primary: #f4f4f5;
+  --color-primary-foreground: #09090b;
+  --color-secondary: #27272a;
+  --color-secondary-foreground: #f4f4f5;
+  --color-destructive: #7f1d1d;
+  --color-destructive-foreground: #fca5a5;
 }
 
 html,

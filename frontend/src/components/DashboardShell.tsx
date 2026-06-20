@@ -17,6 +17,7 @@ import { Map, NavigationControl } from "react-map-gl";
 import {
   Activity,
   BarChart3,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   HelpCircle,
@@ -37,6 +38,14 @@ import { fetchHotspots, fetchStats } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
 import { RankedZoneList } from "@/components/RankedZoneList";
 import { DarkSpotsPanel } from "@/components/DarkSpotsPanel";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import "mapbox-gl/dist/mapbox-gl.css" with { turbopackModuleType: "css" };
 
@@ -690,34 +699,114 @@ export function DashboardShell({
             Filters
           </h3>
           <div className="space-y-2">
-            <select
-              value={violationTypeFilter}
-              onChange={(e) => setViolationTypeFilter(e.target.value)}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 outline-none focus:border-zinc-600"
-            >
-              <option value="all">All Violation Types</option>
-              <option value="WRONG PARKING">Wrong Parking</option>
-              <option value="NO PARKING">No Parking</option>
-              <option value="PARKING IN A MAIN ROAD">Parking in Main Road</option>
-              <option value="DOUBLE PARKING">Double Parking</option>
-              <option value="PARKING OPPOSITE TO ANOTHER PARKED VEHICLE">Parking Opposite</option>
-              <option value="PARKING NEAR BUSTOP/SCHOOL/HOSPITAL ETC">Near Bus Stop/School</option>
-            </select>
-            <select
-              value={vehicleTypeFilter}
-              onChange={(e) => setVehicleTypeFilter(e.target.value)}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 outline-none focus:border-zinc-600"
-            >
-              <option value="all">All Vehicle Types</option>
-              <option value="CAR">Car</option>
-              <option value="SCOOTER">Scooter</option>
-              <option value="MOTOR CYCLE">Motor Cycle</option>
-              <option value="PASSENGER AUTO">Passenger Auto</option>
-              <option value="GOODS AUTO">Goods Auto</option>
-              <option value="BUS (BMTC/KSRTC)">Bus</option>
-              <option value="LORRY/GOODS VEHICLE">Lorry/Goods Vehicle</option>
-              <option value="VAN">Van</option>
-            </select>
+            <div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-normal text-zinc-300 hover:bg-zinc-800 hover:text-zinc-200"
+                  >
+                    {violationTypeFilter === "all"
+                      ? "All Violation Types"
+                      : violationTypeFilter === "WRONG PARKING"
+                        ? "Wrong Parking"
+                        : violationTypeFilter === "NO PARKING"
+                          ? "No Parking"
+                          : violationTypeFilter === "PARKING IN A MAIN ROAD"
+                            ? "Parking in Main Road"
+                            : violationTypeFilter === "DOUBLE PARKING"
+                              ? "Double Parking"
+                              : violationTypeFilter === "PARKING OPPOSITE TO ANOTHER PARKED VEHICLE"
+                                ? "Parking Opposite"
+                                : "Near Bus Stop/School"}
+                    <ChevronDown className="-me-1 ms-2 h-3.5 w-3.5 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="min-w-[220px] border-zinc-800 bg-zinc-950 text-zinc-300">
+                  <DropdownMenuRadioGroup
+                    value={violationTypeFilter}
+                    onValueChange={setViolationTypeFilter}
+                  >
+                    <DropdownMenuRadioItem value="all" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      All Violation Types
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="WRONG PARKING" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Wrong Parking
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="NO PARKING" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      No Parking
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="PARKING IN A MAIN ROAD" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Parking in Main Road
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="DOUBLE PARKING" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Double Parking
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem
+                      value="PARKING OPPOSITE TO ANOTHER PARKED VEHICLE"
+                      className="text-xs focus:bg-zinc-800 focus:text-zinc-200"
+                    >
+                      Parking Opposite
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem
+                      value="PARKING NEAR BUSTOP/SCHOOL/HOSPITAL ETC"
+                      className="text-xs focus:bg-zinc-800 focus:text-zinc-200"
+                    >
+                      Near Bus Stop/School
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-normal text-zinc-300 hover:bg-zinc-800 hover:text-zinc-200"
+                  >
+                    {vehicleTypeFilter === "all"
+                      ? "All Vehicle Types"
+                      : vehicleTypeFilter}
+                    <ChevronDown className="-me-1 ms-2 h-3.5 w-3.5 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="min-w-[220px] border-zinc-800 bg-zinc-950 text-zinc-300">
+                  <DropdownMenuRadioGroup
+                    value={vehicleTypeFilter}
+                    onValueChange={setVehicleTypeFilter}
+                  >
+                    <DropdownMenuRadioItem value="all" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      All Vehicle Types
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="CAR" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Car
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="SCOOTER" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Scooter
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="MOTOR CYCLE" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Motor Cycle
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="PASSENGER AUTO" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Passenger Auto
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="GOODS AUTO" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Goods Auto
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="BUS (BMTC/KSRTC)" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Bus
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="LORRY/GOODS VEHICLE" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Lorry/Goods Vehicle
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="VAN" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                      Van
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           {(violationTypeFilter !== "all" || vehicleTypeFilter !== "all") && (
             <p className="text-[10px] text-zinc-600">

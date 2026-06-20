@@ -19,6 +19,7 @@ import {
   BarChart3,
   Calendar,
   Car,
+  ChevronDown,
   Clock,
   MapPin,
   RefreshCw,
@@ -31,6 +32,14 @@ import Logo from "@/components/Logo";
 import { TimeSlider } from "@/components/TimeSlider";
 import { fetchAnalytics } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 // --- Types matching /api/analytics ---
 interface HourlyPoint {
@@ -829,26 +838,36 @@ function ControlBar({
             Day of Week
           </h2>
         </div>
-        <label className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-            Filter
-          </span>
-          <select
-            value={String(dayFilter)}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-              const v = e.target.value;
-              onDayChange(v === "all" ? "all" : (Number(v) as DayFilter));
-            }}
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-1 font-mono text-xs text-zinc-100 focus:border-sky-500/40 focus:outline-none"
-          >
-            <option value="all">All</option>
-            {DAYS.map((d, i) => (
-              <option key={d} value={i + 1}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full justify-between border-zinc-800 bg-zinc-950 px-2.5 py-1 font-mono text-xs font-normal text-zinc-100 hover:bg-zinc-900 hover:text-zinc-100"
+            >
+              {dayFilter === "all" ? "All" : DAYS[(dayFilter as number) - 1]}
+              <ChevronDown className="-me-1 ms-2 h-3.5 w-3.5 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="min-w-[140px] border-zinc-800 bg-zinc-950 text-zinc-300">
+            <DropdownMenuRadioGroup
+              value={String(dayFilter)}
+              onValueChange={(v) => onDayChange(v === "all" ? "all" : (Number(v) as DayFilter))}
+            >
+              <DropdownMenuRadioItem value="all" className="text-xs focus:bg-zinc-800 focus:text-zinc-200">
+                All
+              </DropdownMenuRadioItem>
+              {DAYS.map((d, i) => (
+                <DropdownMenuRadioItem
+                  key={d}
+                  value={String(i + 1)}
+                  className="text-xs focus:bg-zinc-800 focus:text-zinc-200"
+                >
+                  {d}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="bg-zinc-900/50">
