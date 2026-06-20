@@ -157,7 +157,7 @@ export function DarkSpotsPanel() {
         </h2>
       </header>
       <p className="mb-3 text-[10px] leading-relaxed text-zinc-600">
-        Zones where enforcement is failing — data not sent to SCITA, pending validation, or high rejection rates.
+        Zones where enforcement is failing: data not sent to SCITA, pending validation, or high rejection rates.
       </p>
       <div className="space-y-2">
         {spots.map((spot) => (

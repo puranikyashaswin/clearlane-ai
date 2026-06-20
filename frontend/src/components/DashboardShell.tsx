@@ -13,23 +13,19 @@ import { PathLayer } from "@deck.gl/layers";
 import type { MapViewState, PickingInfo } from "@deck.gl/core";
 import {
   Activity,
-  BarChart3,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  HelpCircle,
   MapPin,
   Send,
   Siren,
 } from "lucide-react";
-import Link from "next/link";
 import { DispatchNotification } from "@/components/DispatchNotification";
 import { ExportActionsPanel } from "@/components/ExportActionsPanel";
 import {
   HorizonControl,
   type PredictionHorizon,
 } from "@/components/HorizonControl";
-import Logo from "@/components/Logo";
 import { TimeSlider } from "@/components/TimeSlider";
 import { fetchHotspots, fetchStats } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
@@ -97,7 +93,7 @@ type Severity = "critical" | "high" | "normal";
 const cn = (...classes: (string | false | null | undefined)[]): string =>
   classes.filter(Boolean).join(" ");
 
-// Dispatch feed is read-only in this iteration — drive the camera
+// Dispatch feed is read-only in this iteration. Drive the camera
 // through the viewState controller rather than imperative fly-to calls.
 interface RouteGeometry {
   coordinates: [number, number][];
@@ -389,7 +385,7 @@ export function DashboardShell({
       );
   }, [data, selectedHour, dataLoadedAt]);
 
-  // Live dispatch feed — rAF-driven, batches 1 alert every ~5s of *visible*
+  // Live dispatch feed, rAF-driven. Batches 1 alert every ~5s of *visible*
   // time. Pauses automatically when the tab is hidden (see useAnimationFrame).
   const lastInsertRef = useRef<number>(0);
   useAnimationFrame((deltaMs) => {
@@ -473,79 +469,9 @@ export function DashboardShell({
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-zinc-950 font-sans text-zinc-100 pb-28">
-      {/* === Top Bar === */}
-      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-5 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Logo />
-          <div className="leading-tight">
-            <div className="text-sm font-medium text-zinc-100">ClearLane</div>
-            <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-              Traffic Command
-            </div>
-          </div>
-          <span className="mx-3 h-5 w-px bg-zinc-800" />
-          <nav className="flex items-center gap-1">
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-zinc-300 transition hover:bg-zinc-900"
-            >
-              <MapPin className="h-3 w-3" />
-              Map
-            </Link>
-            <Link
-              href="/analytics"
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-300"
-            >
-              <BarChart3 className="h-3 w-3" />
-              Analytics
-            </Link>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-3 font-mono tabular-nums">
-          <span className="text-xs text-zinc-500">IST</span>
-          <span className="text-sm font-medium text-zinc-100">{istTime}</span>
-          <span className="text-zinc-700">·</span>
-          <span className="text-xs text-zinc-500">{istDate}</span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-2">
-            {process.env.NEXT_PUBLIC_DEMO_MODE === "true" ? (
-              <>
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-zinc-500" />
-                </span>
-                <span className="text-xs uppercase tracking-wider text-zinc-500">
-                  Demo Mode
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-500/40" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-cyan-500" />
-                </span>
-                <span className="text-xs uppercase tracking-wider text-zinc-400">
-                  System Online
-                </span>
-              </>
-            )}
-          </span>
-          <button
-            type="button"
-            aria-label="Info"
-            title="About ClearLane"
-            className="grid h-7 w-7 place-items-center rounded-md border border-zinc-800 bg-zinc-900 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-100"
-          >
-            <HelpCircle className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </header>
-
       {/* === Left Sidebar === */}
-      <aside className="scroll-thin fixed bottom-0 left-0 top-14 z-30 flex w-80 flex-col overflow-y-auto border-r border-zinc-800 bg-zinc-950/80 backdrop-blur-md pb-28">
-        <section className="p-6">
+      <aside className="scroll-thin fixed bottom-0 left-0 top-0 z-30 flex w-72 flex-col overflow-y-auto border-r border-zinc-800 bg-zinc-950/80 backdrop-blur-md pb-28">
+        <section className="p-6 pt-20">
           <header className="mb-5 flex items-center gap-2">
             <Activity className="h-3.5 w-3.5 text-zinc-500" />
             <h2 className="text-sm font-medium uppercase tracking-wider text-zinc-400">
@@ -700,15 +626,15 @@ export function DashboardShell({
 
         <Divider />
 
+        <TimeSlider value={selectedHour} onChange={handleHourChange} />
+
+        <Divider />
+
         <RankedZoneList />
 
         <Divider />
 
         <DarkSpotsPanel />
-
-        <Divider />
-
-        <TimeSlider value={selectedHour} onChange={handleHourChange} />
 
         <Divider />
 
@@ -718,8 +644,8 @@ export function DashboardShell({
       {/* === Main Canvas === */}
       <main
         className={cn(
-          "absolute bottom-0 top-14 transition-all duration-200",
-          drawerOpen ? "left-80 right-96" : "left-80 right-0"
+          "absolute bottom-0 top-16 transition-all duration-200",
+          drawerOpen ? "left-72 right-96" : "left-72 right-0"
         )}
       >
         <HexMap
@@ -840,7 +766,7 @@ export function DashboardShell({
       {/* === Right Drawer === */}
       <aside
         className={cn(
-          "fixed bottom-0 right-0 top-14 z-30 flex w-96 flex-col border-l border-zinc-800 bg-zinc-950/80 backdrop-blur-md transition-transform duration-200",
+          "fixed bottom-0 right-0 top-0 z-30 flex w-96 flex-col border-l border-zinc-800 bg-zinc-950/80 backdrop-blur-md transition-transform duration-200",
           drawerOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
