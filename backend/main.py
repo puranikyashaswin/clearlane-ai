@@ -672,6 +672,96 @@ async def get_severity_ranking():
     return JSONResponse(content=rankings[:10])
 
 
+# ---------------------------------------------------------------------------
+# Feature 3: Per-hotspot time analysis endpoint
+# ---------------------------------------------------------------------------
+WEEKDAY_LABELS_FULL = [
+    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+]
+
+@app.get("/api/hotspot-times")
+async def get_hotspot_times(h3_index: str = Query(..., description="H3 hexagon index")):
+    """Get hourly and weekday distribution for a specific hotspot."""
+    csv_path = find_csv()
+    df = pl.read_csv(csv_path, ignore_errors=True)
+    df = df.drop_nulls(subset=["latitude", "longitude"])
+
+    df = df.with_columns(
+        pl.col("created_datetime")
+        .str.slice(0, 19)
+        .str.to_datetime("%Y-%m-%d %H:%M:%S", strict=False)
+        .alias("parsed_dt")
+    ).drop_nulls(subset=["parsed_dt"]).with_columns(
+        pl.col("parsed_dt").dt.hour().alias("hour"),
+        pl.col("parsed_dt").dt.weekday().alias("weekday"),
+    )
+
+    # H3 spatial index
+    lats = df["latitude"].to_list()
+    lngs = df["longitude"].to_list()
+    h3_indices_list = [h3.latlng_to_cell(lat, lng, H3_RESOLUTION) for lat, lng in zip(lats, lngs)]
+    df = df.with_columns(pl.Series("h3_index", h3_indices_list))
+
+    # Filter to this hex
+    hex_df = df.filter(pl.col("h3_index") == h3_index)
+    if len(hex_df) == 0:
+        return JSONResponse(content={
+            "hourly": [],
+            "peak_window": {"start": 0, "end": 0, "count": 0},
+            "weekday_distribution": [],
+            "recommendation": "No data available for this hotspot.",
+        })
+
+    # Hourly distribution
+    hourly_df = hex_df.group_by("hour").agg(pl.len().alias("count")).sort("hour")
+    hourly_map = {int(r["hour"]): int(r["count"]) for r in hourly_df.iter_rows(named=True)}
+    hourly = [{"hour": h, "count": hourly_map.get(h, 0)} for h in range(24)]
+
+    # Find peak 3-hour rolling window
+    max_count = 0
+    peak_start = 0
+    for h in range(24):
+        window_total = sum(hourly_map.get((h + offset) % 24, 0) for offset in range(3))
+        if window_total > max_count:
+            max_count = window_total
+            peak_start = h
+    peak_window = {
+        "start": peak_start,
+        "end": (peak_start + 3) % 24,
+        "count": max_count,
+    }
+
+    # Weekday distribution
+    weekday_df = hex_df.group_by("weekday").agg(pl.len().alias("count")).sort("weekday")
+    weekday_map = {int(r["weekday"]): int(r["count"]) for r in weekday_df.iter_rows(named=True)}
+    weekday_distribution = [
+        {"day": WEEKDAY_LABELS_FULL[i], "count": weekday_map.get(i + 1, 0)}
+        for i in range(7)
+    ]
+
+    # Generate recommendation
+    peak_ampm = f"{peak_start % 12 or 12}:00 {'AM' if peak_start < 12 else 'PM'}"
+    peak_end_ampm = f"{(peak_start + 3) % 12 or 12}:00 {'AM' if (peak_start + 3) % 24 < 12 else 'PM'}"
+
+    # Check if weekdays dominate
+    weekday_total = sum(weekday_map.get(d, 0) for d in range(1, 6))
+    weekend_total = sum(weekday_map.get(d, 0) for d in (6, 7))
+    weekday_note = "on weekdays" if weekday_total > weekend_total else "on weekends"
+
+    recommendation = (
+        f"Violations peak between {peak_ampm} and {peak_end_ampm} "
+        f"{weekday_note}. "
+        f"Recommended patrol: deploy by {peak_ampm.replace('00', '45')}."
+    )
+
+    return JSONResponse(content={
+        "hourly": hourly,
+        "peak_window": peak_window,
+        "weekday_distribution": weekday_distribution,
+        "recommendation": recommendation,
+    })
+
+
 @app.get("/api/context-summary")
 async def get_context_summary():
     """Comprehensive data summary for the LLM chat context."""
