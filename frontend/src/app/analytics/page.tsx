@@ -506,7 +506,7 @@ export default function AnalyticsPage() {
                     </div>
                   }
                 />
-                <div className="h-72">
+                <div className="h-72 min-w-0 relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                       <defs>
@@ -556,7 +556,7 @@ export default function AnalyticsPage() {
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur-md" style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", padding: "24px" }}>
                 <PanelHeader icon={Car} label="Vehicle Breakdown" meta="Top 8 classes" />
                 <p className="-mt-2 mb-3 text-[10px] leading-relaxed text-zinc-600">{vehicleInsight}</p>
-                <div className="h-72">
+                <div className="h-72 min-w-0 relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.vehicle_breakdown.slice(0, 8)} layout="vertical"
                       margin={{ top: 4, right: 48, left: 120, bottom: 0 }}>
