@@ -776,12 +776,28 @@ export function DashboardShell({
       </aside>
 
       <ChatPanel
-        context={{
-          stats,
-          horizon,
-          selectedHour,
-          hotspotCount: data?.features?.length,
-        }}
+        context={useMemo(() => {
+          if (!data || !stats) return undefined;
+          const sorted = [...data.features].sort(
+            (a, b) => b.properties.violation_count - a.properties.violation_count,
+          );
+          const top = sorted.slice(0, 15).map((f) => ({
+            place: f.properties.place_name ?? "Unknown",
+            violations: f.properties.violation_count,
+            delay_mins: Math.round(f.properties.estimated_delay_mins),
+            vehicle: f.properties.primary_vehicle,
+          }));
+          return {
+            summary: {
+              total_hotspots: stats.total_active_hotspots,
+              total_violations: stats.total_violations_recorded,
+              total_delay_hours: stats.total_estimated_delay_hours,
+              selected_hour: selectedHour,
+              horizon: horizon,
+            },
+            top_hotspots: top,
+          };
+        }, [data, stats, selectedHour, horizon])}
         contextLabel="Map data context"
       />
     </div>
