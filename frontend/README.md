@@ -53,8 +53,22 @@ ClearLane closes this gap with four capabilities:
 ```
 
 **Backend stack:** Python, FastAPI, Polars, H3 v4, structlog, Pydantic V2.  
-**Frontend stack:** Next.js 16, React 19, deck.gl, Mapbox GL JS, Tailwind CSS v4, Framer Motion, Recharts.  
+**Frontend stack:** Next.js 16, React 19, deck.gl, Mapbox GL JS, Tailwind CSS v4, Framer Motion, Recharts, NVIDIA NIM (LLM chat).  
 **Data:** 298,450 parking violation records from Bengaluru Traffic Police (Jan May 2026).
+
+---
+
+## Chat with AI
+
+Both the map page and analytics page include a floating chat button (bottom-right). Click it to ask natural-language questions about the traffic data. The chat sends the current dashboard context (hotspots, stats, analytics) to an LLM powered by NVIDIA NIM.
+
+To enable it, set your NVIDIA API key in `frontend/.env.local`:
+
+```
+NVIDIA_API_KEY=nvapi-your-key-here
+```
+
+Get a free key at [build.ngc.nvidia.com](https://build.ngc.nvidia.com/).
 
 ---
 

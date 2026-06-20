@@ -30,6 +30,7 @@ import { HorizonControl, type PredictionHorizon } from "@/components/HorizonCont
 import Logo from "@/components/Logo";
 import { TimeSlider } from "@/components/TimeSlider";
 import { fetchAnalytics } from "@/lib/api";
+import { ChatPanel } from "@/components/ChatPanel";
 
 // --- Types matching /api/analytics ---
 interface HourlyPoint {
@@ -112,6 +113,55 @@ const sma = (data: number[], window: number): (number | null)[] => {
     return sum / window;
   });
 };
+
+// ─── Catmull-Rom interpolation ────────────────────────────────────────────
+// Generates `substeps` interpolated points between each pair of control
+// points, producing a smooth curve with visible dot granularity.
+interface InterpPoint {
+  x: number;
+  y: number;
+}
+
+function catmullRomInterpolate(
+  points: InterpPoint[],
+  substeps: number,
+): InterpPoint[] {
+  if (points.length < 2) return points;
+  const result: InterpPoint[] = [];
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(i - 1, 0)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(i + 2, points.length - 1)];
+
+    for (let s = 0; s < substeps; s++) {
+      const t = s / substeps;
+      const t2 = t * t;
+      const t3 = t2 * t;
+
+      const x =
+        0.5 *
+        (2 * p1.x +
+          (-p0.x + p2.x) * t +
+          (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+          (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+
+      const y =
+        0.5 *
+        (2 * p1.y +
+          (-p0.y + p2.y) * t +
+          (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+          (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+
+      result.push({ x: Math.round(x * 10) / 10, y: Math.max(0, y) });
+    }
+  }
+  // Include the last control point
+  const last = points[points.length - 1];
+  result.push({ x: last.x, y: last.y });
+  return result;
+}
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsPayload | null>(null);
@@ -211,24 +261,42 @@ export default function AnalyticsPage() {
     return { totalViolations, totalDelay, totalSpace, peakHour };
   }, [data]);
 
-  // ── Chart data with prediction trend line ──────────────────────────────
+  // ── Chart data with minute-level interpolated curve ─────────────────────
   const chartData = useMemo(() => {
     if (!data) return [];
     const raw = data.hourly_distribution;
     const key = chartMetric === "delay" ? "delay_mins" : "violations";
-    const vals = raw.map((p) => p[key]);
-    const window = data.is_forecast ? 2 : 3;
-    const trend = sma(vals, window);
-    const trendForward = sma(vals, window + 1);
-    return raw.map((p, i) => ({
-      hour: p.hour,
-      label: `${String(p.hour).padStart(2, "0")}:00`,
-      [chartMetric]: p[key],
-      trend: trend[i],
-      predicted: data.is_forecast
-        ? (trendForward[i] ?? trend[i] ?? p[key])
-        : trend[i],
+
+    // Source points: one per hour
+    const sourcePoints: InterpPoint[] = raw.map((p) => ({
+      x: p.hour,
+      y: p[key],
     }));
+
+    // Catmull-Rom: ~12 substeps per hour = smooth minute-level curve
+    const SUBSTEPS = 12;
+    const dense = catmullRomInterpolate(sourcePoints, SUBSTEPS);
+
+    // Compute trend on the original hourly values
+    const vals = raw.map((p) => p[key]);
+    const window_ = data.is_forecast ? 2 : 3;
+    const trend = sma(vals, window_);
+    const trendForward = sma(vals, window_ + 1);
+
+    // Map dense points back to chart rows, attaching trend from nearest hour
+    return dense.map((pt) => {
+      const hourIdx = Math.min(Math.floor(pt.x), raw.length - 1);
+      const p = raw[hourIdx];
+      return {
+        hour: pt.x,
+        label: `${String(hourIdx).padStart(2, "0")}:00`,
+        [chartMetric]: pt.y,
+        trend: trend[hourIdx],
+        predicted: data.is_forecast
+          ? (trendForward[hourIdx] ?? trend[hourIdx] ?? p[key])
+          : trend[hourIdx],
+      };
+    });
   }, [data, chartMetric]);
 
   const heatmapMatrix = useMemo(() => {
@@ -380,16 +448,16 @@ export default function AnalyticsPage() {
                   right={
                     <div className="flex items-center gap-3">
                       {/* Metric toggle */}
-                      <div className="flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-950 p-0.5">
+                      <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950 p-0.5">
                         {(["violations", "delay"] as const).map((m) => (
                           <button
                             key={m}
                             type="button"
                             onClick={() => setChartMetric(m)}
                             className={cn(
-                              "rounded px-2 py-0.5 font-mono text-[9px] font-medium uppercase tracking-wider transition",
+                              "rounded-md px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-wider transition",
                               chartMetric === m
-                                ? "bg-sky-500/20 text-sky-400"
+                                ? "bg-zinc-800 text-zinc-200"
                                 : "text-zinc-500 hover:text-zinc-300"
                             )}
                           >
@@ -450,14 +518,14 @@ export default function AnalyticsPage() {
                         fontFamily="var(--font-inter), monospace"
                       />
                       <Tooltip content={<ChartTooltip metric={chartMetric} />} cursor={{ stroke: "#3f3f46", strokeWidth: 1, strokeDasharray: "2 4" }} />
-                      {/* Main area */}
+                      {/* Main area with dotted curve */}
                       <Area
                         type="monotone"
                         dataKey={chartMetric}
                         stroke={COLORS.accent}
-                        strokeWidth={2}
+                        strokeWidth={1.5}
                         fill="url(#areaGradient)"
-                        dot={false}
+                        dot={{ r: 1.5, fill: COLORS.accent, stroke: "none", opacity: 0.6 }}
                         activeDot={{ r: 4, fill: COLORS.accent, stroke: COLORS.accentDeep, strokeWidth: 2 }}
                       />
                       {/* Prediction trend line with dots */}
@@ -574,34 +642,60 @@ export default function AnalyticsPage() {
                 />
                 <div className="mt-4 overflow-x-auto">
                   <div className="min-w-[760px]">
+                    {/* Hour labels */}
                     <div
                       className="grid font-mono text-[10px] tabular-nums text-zinc-500"
                       style={{
                         gridTemplateColumns: `48px repeat(24, minmax(0, 1fr))`,
+                        gap: 0,
                       }}
                     >
                       <div />
                       {Array.from({ length: 24 }, (_, h) => (
                         <div
                           key={h}
-                          className="px-0 py-1 text-center text-[9px] tracking-wider text-zinc-600"
+                          className="text-center text-[9px] tracking-wider text-zinc-600"
+                          style={{ lineHeight: "18px" }}
                         >
                           {String(h).padStart(2, "0")}
                         </div>
                       ))}
+                    </div>
+                    {/* Dense contiguous heatmap grid */}
+                    <div
+                      className="grid"
+                      style={{
+                        gridTemplateColumns: `48px repeat(24, minmax(0, 1fr))`,
+                        gap: 0,
+                      }}
+                    >
                       {heatmapMatrix?.map((row, dIdx) => (
                         <Fragment key={`row-${dIdx}`}>
-                          <div className="flex items-center pr-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+                          <div
+                            className="flex items-center pr-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500"
+                            style={{ lineHeight: 0 }}
+                          >
                             {DAYS[dIdx]}
                           </div>
                           {row.map((density, h) => {
-                            const intensity = heatMax > 0 ? density / heatMax : 0;
-                            const bg = heatColorAdvanced(intensity, heatQuartiles[1], heatQuartiles[2], heatQuartiles[3], data.is_forecast ?? false, density);
+                            const intensity =
+                              heatMax > 0 ? density / heatMax : 0;
+                            const bg = heatColorAdvanced(
+                              intensity,
+                              heatQuartiles[1],
+                              heatQuartiles[2],
+                              heatQuartiles[3],
+                              data.is_forecast ?? false,
+                              density,
+                            );
                             return (
                               <div
                                 key={`${dIdx}-${h}`}
-                                className="h-7"
-                                style={{ backgroundColor: bg }}
+                                className="transition-colors"
+                                style={{
+                                  backgroundColor: bg,
+                                  height: "32px",
+                                }}
                                 title={`${DAYS[dIdx]} ${String(h).padStart(2, "0")}:00 — ${fmtInt(density)} violations`}
                               />
                             );
@@ -609,43 +703,24 @@ export default function AnalyticsPage() {
                         </Fragment>
                       ))}
                     </div>
-                    {/* Advanced legend */}
-                    <div className="mt-3 flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-zinc-600">
-                      <div className="flex items-center gap-4">
-                        <span>Low</span>
-                        <div className="flex h-3 w-32 overflow-hidden rounded-sm">
-                          {[
-                            "#18181b",
-                            "#1e293b",
-                            "#1e3a5f",
-                            "#0c4a6e",
-                            "#0369a1",
-                            "#0284c7",
-                            "#38bdf8",
-                          ].map((c, i) => (
-                            <div key={i} className="flex-1" style={{ backgroundColor: c }} />
-                          ))}
-                        </div>
-                        <span>High</span>
+                    {/* Compact legend bar */}
+                    <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-zinc-600">
+                      <span>Low</span>
+                      <div className="flex h-2 w-48 overflow-hidden rounded-sm">
+                        {[
+                          "#09090b",
+                          "#18181b",
+                          "#0f172a",
+                          "#0c2233",
+                          "#0a3b5c",
+                          "#075985",
+                          "#0284c7",
+                          "#38bdf8",
+                        ].map((c, i) => (
+                          <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+                        ))}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: "#0c4a6e" }} />
-                          Q1
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: "#0369a1" }} />
-                          Q2
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: "#0284c7" }} />
-                          Q3
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: "#38bdf8" }} />
-                          Q4
-                        </span>
-                      </div>
+                      <span>High</span>
                     </div>
                   </div>
                 </div>
@@ -658,6 +733,11 @@ export default function AnalyticsPage() {
             </footer>
           </>
         )}
+
+        <ChatPanel
+          context={{ analytics: data, dayFilter, selectedHour, horizon }}
+          contextLabel="Analytics context"
+        />
       </main>
     </div>
   );

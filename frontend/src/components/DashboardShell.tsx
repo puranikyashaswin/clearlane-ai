@@ -32,9 +32,9 @@ import {
   type PredictionHorizon,
 } from "@/components/HorizonControl";
 import Logo from "@/components/Logo";
-import { OnboardingTour } from "@/components/OnboardingTour";
 import { TimeSlider } from "@/components/TimeSlider";
 import { fetchHotspots, fetchStats } from "@/lib/api";
+import { ChatPanel } from "@/components/ChatPanel";
 import { useAnimationFrame } from "@/hooks/useAnimationFrame";
 import "mapbox-gl/dist/mapbox-gl.css" with { turbopackModuleType: "css" };
 
@@ -285,8 +285,6 @@ export function DashboardShell({
   const [route, setRoute] = useState<RouteGeometry | null>(null);
   const [, setRouteLoading] = useState<boolean>(false);
 
-  const [tourResetSignal, setTourResetSignal] = useState<number>(0);
-
   const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
 
   // useTransition for horizon + hour changes. The heavy work (deck.gl
@@ -531,8 +529,6 @@ export function DashboardShell({
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-zinc-950 font-sans text-zinc-100">
-      <OnboardingTour resetSignal={tourResetSignal} />
-
       {/* === Top Bar === */}
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-5 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -594,9 +590,8 @@ export function DashboardShell({
           </span>
           <button
             type="button"
-            onClick={() => setTourResetSignal((n) => n + 1)}
-            aria-label="Restart onboarding tour"
-            title="Restart tour"
+            aria-label="Info"
+            title="About ClearLane"
             className="grid h-7 w-7 place-items-center rounded-md border border-zinc-800 bg-zinc-900 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-100"
           >
             <HelpCircle className="h-3.5 w-3.5" />
@@ -674,7 +669,7 @@ export function DashboardShell({
         >
           <Map
             mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
-            mapStyle="mapbox://styles/mapbox/streets-v12"
+            mapStyle="mapbox://styles/mapbox/dark-v11"
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
             maxBounds={MAX_BOUNDS}
@@ -779,6 +774,16 @@ export function DashboardShell({
           )}
         </div>
       </aside>
+
+      <ChatPanel
+        context={{
+          stats,
+          horizon,
+          selectedHour,
+          hotspotCount: data?.features?.length,
+        }}
+        contextLabel="Map data context"
+      />
     </div>
   );
 }
