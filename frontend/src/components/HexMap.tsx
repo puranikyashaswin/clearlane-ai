@@ -4,9 +4,10 @@ import { useMemo, useState, useCallback } from "react";
 import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer } from "@deck.gl/geo-layers";
 import { ContourLayer } from "@deck.gl/aggregation-layers";
+import { TextLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { Layer, MapViewState, PickingInfo } from "@deck.gl/core";
 import { Map as MapGL, NavigationControl } from "react-map-gl";
-import { Hexagon, Layers, MapPin, Clock } from "lucide-react";
+import { Hexagon, Layers, Clock } from "lucide-react";
 
 // --- Types ---
 export interface HotspotProperties {
@@ -193,12 +194,13 @@ export function HexMap({
     return hexData[0].count;
   }, [hexData]);
 
-  // Top 5 hottest zones for floating labels
-  const topZones = useMemo(() => {
-    return hexData.slice(0, 5).map((h) => ({
-      name: h.properties.place_name || h.hex.slice(0, 8),
-      count: h.count,
-      center: h.center,
+  // Top hotspots for Deck.gl label layers (used by BOTH hex and contour views)
+  const topHotspotLabels = useMemo(() => {
+    return hexData.slice(0, 6).map((h) => ({
+      longitude: h.center[0],
+      latitude: h.center[1],
+      locationName: h.properties.place_name || h.hex.slice(0, 8),
+      violationCount: h.count,
     }));
   }, [hexData]);
 
@@ -247,6 +249,53 @@ export function HexMap({
       );
     }
 
+    // === Hotspot label layers — render on top in BOTH hex and contour views ===
+
+    // Dot markers at each hotspot coordinate
+    result.push(
+      new ScatterplotLayer({
+        id: "hotspot-label-dots",
+        data: topHotspotLabels,
+        getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
+        getRadius: 6,
+        getFillColor: [255, 80, 80, 255],
+        pickable: false,
+        radiusUnits: "pixels",
+      }),
+    );
+
+    // Text labels with location name + violation count
+    result.push(
+      new TextLayer({
+        id: "hotspot-labels",
+        data: topHotspotLabels,
+        getPosition: (d: { longitude: number; latitude: number }) => [d.longitude, d.latitude],
+        getText: (d: { locationName: string; violationCount: number }) =>
+          `${d.locationName}  ${fmtCount(d.violationCount)}`,
+        getSize: 13,
+        getColor: [255, 255, 255, 230],
+        getBackgroundColor: [20, 20, 20, 200],
+        background: true,
+        getBorderColor: [255, 80, 80, 180],
+        getBorderWidth: 1,
+        backgroundPadding: [8, 4, 8, 4],
+        fontFamily: "monospace",
+        fontWeight: "bold",
+        getTextAnchor: "middle",
+        getAlignmentBaseline: "center",
+        billboard: false,
+        pickable: true,
+        onClick: ({ object }) => {
+          if (object && onClick) {
+            // Find matching hex data and emit click
+            const label = object as { longitude: number; latitude: number };
+            const fakeInfo = { object: null, x: 0, y: 0, coordinate: [label.longitude, label.latitude] } as unknown as PickingInfo;
+            onClick(fakeInfo);
+          }
+        },
+      }),
+    );
+
     if (extraLayers) {
       for (const layer of extraLayers) {
         result.push(layer);
@@ -254,7 +303,7 @@ export function HexMap({
     }
 
     return result;
-  }, [hexData, maxCount, viewMode, onHover, onClick, extraLayers]);
+  }, [hexData, maxCount, viewMode, onHover, onClick, extraLayers, topHotspotLabels]);
 
   const hourLabel = `${String(selectedHour).padStart(2, "0")}:00`;
 
@@ -341,40 +390,6 @@ export function HexMap({
             <span>500</span>
             <span>{fmtCount(maxCount)}+</span>
           </div>
-        </div>
-      )}
-
-      {/* Fix 2: Floating zone labels for top 5 hotspots */}
-      {topZones.length > 0 && (
-        <div className="absolute inset-0 pointer-events-none z-10">
-          {topZones.slice(0, 3).map((zone, i) => {
-            // Project lat/lng to screen coordinates using deck.gl viewState
-            // Simple approach: position absolutely near the map corners with offset
-            // for each zone since we can't easily project
-            const positions = [
-              { top: "22%", left: "38%" },
-              { top: "35%", left: "55%" },
-              { top: "50%", left: "30%" },
-              { top: "60%", left: "65%" },
-              { top: "45%", left: "45%" },
-            ] as const;
-            const pos = positions[i] ?? positions[4];
-            return (
-              <div
-                key={zone.name}
-                className="absolute z-20 flex items-center gap-2 rounded-full border border-rose-500/40 bg-zinc-950/85 px-3 py-1.5 backdrop-blur-md shadow-lg shadow-rose-900/20"
-                style={{ top: pos.top, left: pos.left }}
-              >
-                <MapPin className="h-3 w-3 shrink-0 text-rose-400" />
-                <span className="max-w-[140px] truncate text-xs font-medium text-zinc-100">
-                  {zone.name}
-                </span>
-                <span className="font-mono text-[10px] font-semibold tabular-nums text-rose-400">
-                  {fmtCount(zone.count)}
-                </span>
-              </div>
-            );
-          })}
         </div>
       )}
 

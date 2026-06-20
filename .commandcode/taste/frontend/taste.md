@@ -1,4 +1,5 @@
 # frontend
+- Use Deck.gl layers (TextLayer, ScatterplotLayer) for map labels and markers instead of CSS position:absolute HTML overlays — labels must move/zoom/pan with the map in the WebGL canvas. Confidence: 0.85
 - Use a strict monochromatic Zinc/Slate design system (bg-zinc-950, zinc-900/50 panels, zinc-800 borders, text-zinc-100/400). Confidence: 0.85
 - Remove neon glows, heavy shadows, and excessive gradients from UI. Confidence: 0.85
 - Use Inter font with monospaced tabular-nums for all numbers/stats. Confidence: 0.85
