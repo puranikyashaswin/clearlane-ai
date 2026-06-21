@@ -83,6 +83,8 @@ export interface Waypoint {
   violation_count: number;
   h3_index: string;
   primary_vehicle: string;
+  place_name: string | null;
+  top_violation_type: string | null;
 }
 
 export interface PatrolRoute {
@@ -177,6 +179,8 @@ export async function fetchPatrolRoute(
         violation_count: f.properties.violation_count,
         h3_index: f.properties.h3_index,
         primary_vehicle: f.properties.primary_vehicle,
+        place_name: f.properties.place_name ?? null,
+        top_violation_type: f.properties.top_violation_type ?? null,
       }));
       return {
         waypoints,

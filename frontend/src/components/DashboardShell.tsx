@@ -9,7 +9,6 @@ import {
   useState,
   useTransition,
 } from "react";
-import { PathLayer } from "@deck.gl/layers";
 import type { MapViewState, PickingInfo } from "@deck.gl/core";
 import {
   Activity,
@@ -31,6 +30,7 @@ import { fetchHotspots, fetchStats } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
 import { RankedZoneList } from "@/components/RankedZoneList";
 import { DarkSpotsPanel } from "@/components/DarkSpotsPanel";
+import { PatrolRoutePanel } from "@/components/PatrolRoutePanel";
 import { HexMap, type H3HexData } from "@/components/HexMap";
 import {
   DropdownMenu,
@@ -93,20 +93,6 @@ type Severity = "critical" | "high" | "normal";
 const cn = (...classes: (string | false | null | undefined)[]): string =>
   classes.filter(Boolean).join(" ");
 
-// Dispatch feed is read-only in this iteration. Drive the camera
-// through the viewState controller rather than imperative fly-to calls.
-interface RouteGeometry {
-  coordinates: [number, number][];
-  distanceMeters: number;
-  durationSeconds: number;
-}
-
-interface ClickedHotspot {
-  h3_index: string;
-  center: [number, number];
-  properties: HotspotProperties;
-}
-
 interface DispatchAlert {
   id: string;
   station: string;
@@ -133,39 +119,6 @@ const MAX_BOUNDS: [[number, number], [number, number]] = [
   [BENGALURU_BOUNDS.minLon, BENGALURU_BOUNDS.minLat],
   [BENGALURU_BOUNDS.maxLon, BENGALURU_BOUNDS.maxLat],
 ];
-
-const MG_ROAD_ORIGIN: [number, number] = [77.6068, 12.9756];
-
-const fetchRoute = async (
-  origin: [number, number],
-  destination: [number, number],
-  token: string
-): Promise<RouteGeometry | null> => {
-  const url =
-    `https://api.mapbox.com/directions/v5/mapbox/driving/` +
-    `${origin[0]},${origin[1]};${destination[0]},${destination[1]}` +
-    `?geometries=geojson&overview=full&access_token=${token}`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const json: {
-      routes?: Array<{
-        geometry: { coordinates: [number, number][] };
-        distance: number;
-        duration: number;
-      }>;
-    } = await res.json();
-    const route = json.routes?.[0];
-    if (!route) return null;
-    return {
-      coordinates: route.geometry.coordinates,
-      distanceMeters: route.distance,
-      durationSeconds: route.duration,
-    };
-  } catch {
-    return null;
-  }
-};
 
 const INITIAL_VIEW_STATE: MapViewState = {
   longitude: 77.5946,
@@ -276,12 +229,6 @@ export function DashboardShell({
   const [drawerOpen, setDrawerOpen] = useState<boolean>(true);
   const [horizon, setHorizon] = useState<PredictionHorizon>("now");
   const [liveFeed, setLiveFeed] = useState<DispatchAlert[]>([]);
-
-  const [clickedHotspot, setClickedHotspot] = useState<ClickedHotspot | null>(
-    null
-  );
-  const [route, setRoute] = useState<RouteGeometry | null>(null);
-  const [, setRouteLoading] = useState<boolean>(false);
 
   const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
 
@@ -502,6 +449,10 @@ export function DashboardShell({
 
         <Divider />
 
+        <PatrolRoutePanel hour={selectedHour} />
+
+        <Divider />
+
         {/* Feature 1: Filter dropdowns */}
         <section className="px-6 py-4 space-y-3">
           <h3 className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
@@ -672,44 +623,10 @@ export function DashboardShell({
               setHoverInfo(null);
             }
           }}
-          onClick={(info: PickingInfo) => {
-            if (info.object) {
-              const hexData = info.object as H3HexData;
-              setClickedHotspot({
-                h3_index: hexData.hex,
-                center: hexData.center,
-                properties: hexData.properties,
-              });
-              setRoute(null);
-              const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
-              if (!token) return;
-              setRouteLoading(true);
-              void fetchRoute(MG_ROAD_ORIGIN, hexData.center, token).then((r) => {
-                setRoute(r);
-                setRouteLoading(false);
-              });
-            }
-          }}
           viewState={viewState}
           onViewStateChange={({ viewState: next }) => {
             setViewState(next);
           }}
-          extraLayers={
-            route && route.coordinates.length > 0
-              ? [
-                  new PathLayer<{ path: [number, number][] }>({
-                    id: "clicked-hotspot-route",
-                    data: [{ path: route.coordinates }],
-                    getPath: (d: { path: [number, number][] }) => d.path,
-                    getColor: [37, 99, 235, 230],
-                    getWidth: 5,
-                    widthUnits: "pixels",
-                    capRounded: true,
-                    jointRounded: true,
-                  }),
-                ]
-              : undefined
-          }
           selectedHour={selectedHour}
           onHourChange={handleHourChange}
         />

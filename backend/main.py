@@ -20,6 +20,8 @@ class Waypoint(BaseModel):
     violation_count: int
     h3_index: str
     primary_vehicle: str
+    place_name: str | None = None
+    top_violation_type: str | None = None
 
 class PatrolRouteResponse(BaseModel):
     waypoints: list[Waypoint]
@@ -345,6 +347,8 @@ async def get_patrol_route(hour: Optional[int] = Query(None, ge=0, le=23)):
 
     waypoints: list[Waypoint] = []
     for row in top5.iter_rows(named=True):
+        place_name = str(row["place_name"]) if row["place_name"] else None
+        top_vt = str(row["top_violation_type"]) if row["top_violation_type"] else None
         waypoints.append(Waypoint(
             lng=float(row["center_lng"]),
             lat=float(row["center_lat"]),
@@ -352,6 +356,8 @@ async def get_patrol_route(hour: Optional[int] = Query(None, ge=0, le=23)):
             violation_count=int(row["violation_count"]),
             h3_index=str(row["h3_index"]),
             primary_vehicle=str(row["primary_vehicle"]) if row["primary_vehicle"] else "Mixed",
+            place_name=place_name,
+            top_violation_type=top_vt,
         ))
 
     total_impact = round(sum(w.estimated_delay_mins for w in waypoints), 2)
