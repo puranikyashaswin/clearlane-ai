@@ -23,14 +23,14 @@ function LabelBadge({ label }: { label: string }) {
 
 interface DarkSpotRowProps {
   spot: DarkSpot;
-  onPanTo: (center: [number, number]) => void;
+  onPanTo: (center: [number, number], h3Index: string) => void;
 }
 
 function DarkSpotRow({ spot, onPanTo }: DarkSpotRowProps) {
   return (
     <button
       type="button"
-      onClick={() => onPanTo(spot.center)}
+      onClick={() => onPanTo(spot.center, spot.h3_index)}
       className="group flex w-full items-start gap-3 rounded-lg border border-zinc-800/60 bg-zinc-900/40 px-3 py-2.5 text-left transition hover:border-zinc-700 hover:bg-zinc-900/80"
     >
       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-rose-500/70" />
@@ -91,10 +91,10 @@ export function DarkSpotsPanel() {
     };
   }, []);
 
-  const handlePanTo = useCallback((center: [number, number]) => {
+  const handlePanTo = useCallback((center: [number, number], h3Index: string) => {
     window.dispatchEvent(
       new CustomEvent("clearlane:pan-to-zone", {
-        detail: { center, h3_index: "" },
+        detail: { center, h3_index: h3Index },
       }),
     );
   }, []);

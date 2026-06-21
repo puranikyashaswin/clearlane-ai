@@ -231,7 +231,7 @@ export function DashboardShell({
   const [liveFeed, setLiveFeed] = useState<DispatchAlert[]>([]);
 
   const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
-  const [targetLocation, setTargetLocation] = useState<[number, number] | null>(null);
+  const [targetLocation, setTargetLocation] = useState<{ lng: number; lat: number; h3Index?: string } | null>(null);
   const [clickedWaypoint, setClickedWaypoint] = useState<{ name: string; lng: number; lat: number } | null>(null);
   const selectedHexTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -276,7 +276,7 @@ export function DashboardShell({
       handleHourChange(detail);
     };
     const onPanTo = (e: Event): void => {
-      const { center, place_name } = (e as CustomEvent<{ center: [number, number]; place_name?: string | null }>).detail;
+      const { center, h3_index, place_name } = (e as CustomEvent<{ center: [number, number]; h3_index?: string; place_name?: string | null }>).detail;
       setViewState((prev) => ({
         ...prev,
         longitude: center[0],
@@ -285,7 +285,7 @@ export function DashboardShell({
         transitionDuration: 800,
       }));
       if (selectedHexTimerRef.current) clearTimeout(selectedHexTimerRef.current);
-      setTargetLocation([center[0], center[1]]);
+      setTargetLocation({ lng: center[0], lat: center[1], h3Index: h3_index || undefined });
       if (place_name) {
         setClickedWaypoint({ name: place_name, lng: center[0], lat: center[1] });
       }
