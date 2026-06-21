@@ -231,6 +231,9 @@ export function DashboardShell({
   const [liveFeed, setLiveFeed] = useState<DispatchAlert[]>([]);
 
   const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
+  const [targetLocation, setTargetLocation] = useState<[number, number] | null>(null);
+  const [clickedWaypoint, setClickedWaypoint] = useState<{ name: string; lng: number; lat: number } | null>(null);
+  const selectedHexTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Feature 1: Filter state
   const [violationTypeFilter, setViolationTypeFilter] = useState<string>("all");
@@ -273,7 +276,7 @@ export function DashboardShell({
       handleHourChange(detail);
     };
     const onPanTo = (e: Event): void => {
-      const { center } = (e as CustomEvent<{ center: [number, number] }>).detail;
+      const { center, place_name } = (e as CustomEvent<{ center: [number, number]; place_name?: string | null }>).detail;
       setViewState((prev) => ({
         ...prev,
         longitude: center[0],
@@ -281,6 +284,15 @@ export function DashboardShell({
         zoom: 15,
         transitionDuration: 800,
       }));
+      if (selectedHexTimerRef.current) clearTimeout(selectedHexTimerRef.current);
+      setTargetLocation([center[0], center[1]]);
+      if (place_name) {
+        setClickedWaypoint({ name: place_name, lng: center[0], lat: center[1] });
+      }
+      selectedHexTimerRef.current = setTimeout(() => {
+        setTargetLocation(null);
+        setClickedWaypoint(null);
+      }, 3000);
     };
     window.addEventListener("clearlane:horizon-change", onHorizon);
     window.addEventListener("clearlane:hour-change", onHour);
@@ -449,6 +461,10 @@ export function DashboardShell({
 
         <Divider />
 
+        <TimeSlider value={selectedHour} onChange={handleHourChange} />
+
+        <Divider />
+
         <PatrolRoutePanel hour={selectedHour} />
 
         <Divider />
@@ -577,10 +593,6 @@ export function DashboardShell({
 
         <Divider />
 
-        <TimeSlider value={selectedHour} onChange={handleHourChange} />
-
-        <Divider />
-
         <RankedZoneList />
 
         <Divider />
@@ -629,9 +641,19 @@ export function DashboardShell({
           }}
           selectedHour={selectedHour}
           onHourChange={handleHourChange}
+          targetLocation={targetLocation}
         />
 
         {hoverInfo && <HoverTooltip info={hoverInfo} />}
+
+        {clickedWaypoint && (
+          <div className="pointer-events-none absolute left-4 top-4 z-20 animate-pulse rounded-md border border-cyan-500/40 bg-zinc-950/90 px-3 py-1.5 backdrop-blur-md">
+            <MapPin className="-ml-0.5 mr-1.5 inline h-3.5 w-3.5 text-cyan-400" />
+            <span className="font-mono text-xs font-medium text-cyan-300">
+              {clickedWaypoint.name}
+            </span>
+          </div>
+        )}
 
         {showExportPanel && exportPanelData && (
           <ExportActionsPanel

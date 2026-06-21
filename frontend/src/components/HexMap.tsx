@@ -54,6 +54,7 @@ interface HexMapProps {
   extraLayers?: Layer[];
   selectedHour?: number;
   onHourChange?: (hour: number) => void;
+  targetLocation?: [number, number] | null;
 }
 
 const BENGALURU_BOUNDS = {
@@ -114,7 +115,7 @@ function fmtCount(n: number): string {
 
 export function HexMap({
   data, onHover, onClick, viewState, onViewStateChange, extraLayers,
-  selectedHour = 8, onHourChange,
+  selectedHour = 8, onHourChange, targetLocation,
 }: HexMapProps) {
   const [viewMode, setViewMode] = useState<"hex" | "contour">("hex");
 
@@ -196,6 +197,29 @@ export function HexMap({
     }));
   }, [hexData]);
 
+  // Find the nearest rendered hexagon to the target location
+  const highlightHex = useMemo<string | null>(() => {
+    if (!targetLocation || hexData.length === 0) return null;
+    const [lng, lat] = targetLocation;
+    // First try the exact h3-js computed hex (same method the map uses)
+    const { latLngToCell } = require("h3-js");
+    const exactHex = latLngToCell(lat, lng, 8);
+    if (hexData.some((h) => h.hex === exactHex)) return exactHex;
+    // Fallback: nearest neighbor in rendered hexData
+    let best: string | null = null;
+    let bestDist = Infinity;
+    for (const h of hexData) {
+      const dx = h.center[0] - lng;
+      const dy = h.center[1] - lat;
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
+        bestDist = d;
+        best = h.hex;
+      }
+    }
+    return best;
+  }, [targetLocation, hexData]);
+
   // Build deck.gl layers
   const layers = useMemo<Layer[]>(() => {
     const result: Layer[] = [];
@@ -212,12 +236,18 @@ export function HexMap({
           coverage: 0.92,
           getHexagon: (d: H3HexData) => d.hex,
           getFillColor: (d: H3HexData) => hexColor(d.count, maxCount),
-          getLineColor: [255, 255, 255, 30],
-          getLineWidth: 1,
+          getLineColor: (d: H3HexData) =>
+            highlightHex && d.hex === highlightHex
+              ? [0, 255, 255, 255]
+              : [255, 255, 255, 30],
+          getLineWidth: (d: H3HexData) =>
+            highlightHex && d.hex === highlightHex ? 4 : 1,
           onHover: onHover,
           onClick: onClick,
           updateTriggers: {
             getFillColor: [hexData.length, maxCount],
+            getLineColor: [highlightHex],
+            getLineWidth: [highlightHex],
           },
         }),
       );
