@@ -254,7 +254,3 @@ The CSV is ~105 MB and not tracked in git. The backend downloads it automaticall
 | Deployment (backend) | Railway | |
 
 ---
-
-## Credits
-
-Built by Team [Your Team Name] for Gridlock Hackathon 2.0 Round 2 (Flipkart).
