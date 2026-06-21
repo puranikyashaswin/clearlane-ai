@@ -172,7 +172,10 @@ export async function fetchPatrolRoute(
       const sorted = [...fc.features].sort(
         (a, b) => b.properties.estimated_delay_mins - a.properties.estimated_delay_mins,
       );
-      const waypoints = sorted.slice(0, 5).map((f) => ({
+      // Rotate the sorted list so different hours show different patrol routes
+      const offset = (hour ?? 8) * 2;
+      const rotated = [...sorted.slice(offset), ...sorted.slice(0, offset)];
+      const waypoints = rotated.slice(0, 5).map((f) => ({
         lng: f.properties.center[0],
         lat: f.properties.center[1],
         estimated_delay_mins: f.properties.estimated_delay_mins,

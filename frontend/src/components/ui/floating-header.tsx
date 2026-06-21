@@ -7,7 +7,6 @@ import {
   MapPin,
   BarChart3,
   MenuIcon,
-  HelpCircle,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetFooter } from "@/components/ui/sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -66,10 +65,12 @@ export function FloatingHeader() {
   return (
     <header
       className={cn(
-        "fixed top-3 left-1/2 -translate-x-1/2 z-50",
-        "w-[calc(100%-2rem)] max-w-5xl rounded-xl border border-zinc-800/60 shadow-2xl",
+        "fixed top-2 left-1/2 z-50",
+        "max-w-2xl w-auto rounded-lg border border-zinc-800/60 shadow-2xl",
         "bg-zinc-950/30 supports-[backdrop-filter]:bg-zinc-950/20 backdrop-blur-2xl",
+        "px-[15px]",
       )}
+      style={{ transform: "translate(calc(-50% - 90px))" }}
     >
       <nav className="mx-auto flex items-center justify-between px-2 py-1.5">
         {/* Left: Logo + Nav */}
@@ -110,27 +111,8 @@ export function FloatingHeader() {
           <span className="text-[10px] text-zinc-500">{istDate}</span>
         </div>
 
-        {/* Right: Status + Help + Mobile Menu */}
+        {/* Right: Status + Mobile Menu */}
         <div className="flex items-center gap-2">
-          {/* System status */}
-          <div className="hidden items-center gap-2 lg:flex">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-500/40" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-cyan-500" />
-            </span>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-500">
-              Live
-            </span>
-          </div>
-
-          <Link
-            href="/"
-            aria-label="Help"
-            className="grid h-7 w-7 place-items-center rounded-md border border-zinc-800 bg-zinc-900 text-zinc-500 transition hover:border-zinc-700 hover:text-zinc-100"
-          >
-            <HelpCircle className="size-3.5" />
-          </Link>
-
           {/* Mobile hamburger */}
           <Sheet open={open} onOpenChange={setOpen}>
             <Button

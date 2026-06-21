@@ -54,7 +54,7 @@ interface HexMapProps {
   extraLayers?: Layer[];
   selectedHour?: number;
   onHourChange?: (hour: number) => void;
-  targetLocation?: [number, number] | null;
+  targetLocation?: { lng: number; lat: number; h3Index?: string } | null;
 }
 
 const BENGALURU_BOUNDS = {
@@ -129,6 +129,7 @@ export function HexMap({
       junctionCount: number;
       center: [number, number];
       properties: HotspotProperties;
+      runningMaxViolation: number;
     }>();
 
     for (const feature of data.features) {
@@ -146,11 +147,23 @@ export function HexMap({
           junctionCount: 0,
           center: [lng, lat],
           properties: props,
+          runningMaxViolation: props.violation_count ?? 1,
         });
       }
 
       const entry = hexMap.get(hex)!;
       entry.count += props.violation_count ?? 1;
+
+      // Keep the center and properties from whichever feature in this res-8 hex
+      // has the highest individual violation_count. This ensures the displayed
+      // place name and tooltip data come from the most representative hotspot,
+      // not whichever feature was iterated last (which was the old bug).
+      const featureCount = props.violation_count ?? 1;
+      if (featureCount > entry.runningMaxViolation) {
+        entry.runningMaxViolation = featureCount;
+        entry.center = [lng, lat];
+        entry.properties = props;
+      }
 
       const vt = props.top_violation_type;
       if (vt) {
@@ -160,9 +173,6 @@ export function HexMap({
       if (props.place_name && !props.place_name.includes("Road") && !props.place_name.includes("Street")) {
         entry.junctionCount += 1;
       }
-
-      entry.center = [lng, lat];
-      entry.properties = props;
     }
 
     const result: H3HexData[] = [];
@@ -200,12 +210,20 @@ export function HexMap({
   // Find the nearest rendered hexagon to the target location
   const highlightHex = useMemo<string | null>(() => {
     if (!targetLocation || hexData.length === 0) return null;
-    const [lng, lat] = targetLocation;
-    // First try the exact h3-js computed hex (same method the map uses)
+    const { lng, lat, h3Index } = targetLocation;
+    // When the backend's h3_index is available, use cellToParent for an exact match.
+    // This is deterministic: the res-8 parent of a known res-10 cell is always correct,
+    // unlike latLngToCell which can land in the wrong res-8 hex when the mean center
+    // of a res-10 cell falls near the boundary of its res-8 parent.
+    if (h3Index) {
+      const { cellToParent } = require("h3-js");
+      const exactHex = cellToParent(h3Index, 8);
+      if (hexData.some((h) => h.hex === exactHex)) return exactHex;
+    }
+    // Fallback: use latLngToCell (less precise, used when no h3_index is available)
     const { latLngToCell } = require("h3-js");
     const exactHex = latLngToCell(lat, lng, 8);
-    if (hexData.some((h) => h.hex === exactHex)) return exactHex;
-    // Fallback: nearest neighbor in rendered hexData
+    // Last resort: nearest neighbor
     let best: string | null = null;
     let bestDist = Infinity;
     for (const h of hexData) {

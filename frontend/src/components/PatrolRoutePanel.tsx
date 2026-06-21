@@ -31,10 +31,10 @@ export function PatrolRoutePanel({ hour }: { hour: number | null }) {
     };
   }, [hour]);
 
-  const handlePanTo = useCallback((lng: number, lat: number) => {
+  const handlePanTo = useCallback((lng: number, lat: number, h3Index: string, placeName: string | null) => {
     window.dispatchEvent(
       new CustomEvent("clearlane:pan-to-zone", {
-        detail: { center: [lng, lat], h3_index: "" },
+        detail: { center: [lng, lat], h3_index: h3Index, place_name: placeName },
       }),
     );
   }, []);
@@ -107,7 +107,7 @@ export function PatrolRoutePanel({ hour }: { hour: number | null }) {
           <button
             key={wp.h3_index}
             type="button"
-            onClick={() => handlePanTo(wp.lng, wp.lat)}
+            onClick={() => handlePanTo(wp.lng, wp.lat, wp.h3_index, wp.place_name)}
             className="group flex w-full items-start gap-3 rounded-lg border border-zinc-800/60 bg-zinc-900/40 px-3 py-2.5 text-left transition hover:border-zinc-700 hover:bg-zinc-900/80"
           >
             {/* Rank number */}
