@@ -18,6 +18,12 @@ export function PatrolRoutePanel({ hour }: { hour: number | null }) {
         if (mounted) {
           setRoute(data);
           setLoading(false);
+          // Broadcast waypoints so DashboardShell can fetch MapMyIndia route geometry
+          window.dispatchEvent(
+            new CustomEvent("clearlane:patrol-route-loaded", {
+              detail: data.waypoints.map((wp) => ({ lat: wp.lat, lng: wp.lng })),
+            }),
+          );
         }
       })
       .catch((err) => {

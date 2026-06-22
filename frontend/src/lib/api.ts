@@ -193,6 +193,41 @@ export async function fetchPatrolRoute(
   );
 }
 
+/**
+ * Fetch driving route geometry from the MapMyIndia (Mappls) Routing API.
+ * Returns an array of [lng, lat] coordinate pairs representing the full route path.
+ * Falls back to straight lines between waypoints if the API key is missing or the
+ * call fails.
+ */
+export async function fetchPatrolRouteGeometry(
+  waypoints: { lat: number; lng: number }[],
+): Promise<[number, number][]> {
+  const apiKey = process.env.NEXT_PUBLIC_MAPMYINDIA_KEY;
+  if (!apiKey || waypoints.length < 2) {
+    console.warn("[clearlane] MapMyIndia key missing or insufficient waypoints — falling back to straight-line route");
+    return waypoints.map((wp) => [wp.lng, wp.lat] as [number, number]);
+  }
+
+  const coords = waypoints.map((wp) => `${wp.lng},${wp.lat}`).join(";");
+  const url = `https://apis.mappls.com/advancedmaps/v1/${apiKey}/route_adv/driving/${coords}?geometries=geojson`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`MapMyIndia API returned ${res.status}`);
+    const data = await res.json();
+    // Response contains routes[].geometry as a GeoJSON LineString when
+    // geometries=geojson is requested.
+    const geometry = data.routes?.[0]?.geometry;
+    if (geometry?.type === "LineString" && Array.isArray(geometry.coordinates)) {
+      return geometry.coordinates as [number, number][];
+    }
+    throw new Error("Unexpected response format from MapMyIndia");
+  } catch (err) {
+    console.warn("[clearlane] MapMyIndia routing failed — falling back to straight-line route:", err);
+    return waypoints.map((wp) => [wp.lng, wp.lat] as [number, number]);
+  }
+}
+
 export async function fetchAnalytics(
   hour: number,
   horizon: PredictionHorizon,

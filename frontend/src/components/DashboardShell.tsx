@@ -26,7 +26,7 @@ import {
   type PredictionHorizon,
 } from "@/components/HorizonControl";
 import { TimeSlider } from "@/components/TimeSlider";
-import { fetchHotspots, fetchStats } from "@/lib/api";
+import { fetchHotspots, fetchPatrolRouteGeometry, fetchStats } from "@/lib/api";
 import { ChatPanel } from "@/components/ChatPanel";
 import { RankedZoneList } from "@/components/RankedZoneList";
 import { DarkSpotsPanel } from "@/components/DarkSpotsPanel";
@@ -235,6 +235,7 @@ export function DashboardShell({
   const [clickedWaypoint, setClickedWaypoint] = useState<{ name: string; lng: number; lat: number } | null>(null);
   const [highlightedHex, setHighlightedHex] = useState<string | null>(null);
   const [highlightedWaypointName, setHighlightedWaypointName] = useState<string | null>(null);
+  const [patrolRouteGeometry, setPatrolRouteGeometry] = useState<[number, number][] | null>(null);
   const selectedHexTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Feature 1: Filter state
@@ -336,6 +337,16 @@ export function DashboardShell({
     };
     load();
   }, [selectedHour, horizon]);
+
+  // Fetch MapMyIndia route geometry when patrol waypoints are loaded
+  useEffect(() => {
+    const onRouteLoaded = (e: Event): void => {
+      const waypoints = (e as CustomEvent<{ lat: number; lng: number }[]>).detail;
+      fetchPatrolRouteGeometry(waypoints).then(setPatrolRouteGeometry);
+    };
+    window.addEventListener("clearlane:patrol-route-loaded", onRouteLoaded);
+    return () => window.removeEventListener("clearlane:patrol-route-loaded", onRouteLoaded);
+  }, []);
 
   // rAF-driven clock. Replaces setInterval(1000) with a single frame-synced
   // loop that pauses while the tab is hidden.
@@ -663,6 +674,7 @@ export function DashboardShell({
           selectedHour={selectedHour}
           onHourChange={handleHourChange}
           targetLocation={targetLocation}
+          patrolRouteGeometry={patrolRouteGeometry}
         />
 
         {hoverInfo && <HoverTooltip info={hoverInfo} />}
