@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer } from "@deck.gl/geo-layers";
 import { ContourLayer } from "@deck.gl/aggregation-layers";
-import { TextLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { PathLayer, TextLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { Layer, MapViewState, PickingInfo } from "@deck.gl/core";
 import { Map as MapGL, NavigationControl } from "react-map-gl";
-import { Hexagon, Layers, Clock } from "lucide-react";
+import { Hexagon, Layers, Clock, MapPin } from "lucide-react";
 
 // --- Types ---
 export interface HotspotProperties {
@@ -55,6 +55,7 @@ interface HexMapProps {
   selectedHour?: number;
   onHourChange?: (hour: number) => void;
   targetLocation?: { lng: number; lat: number; h3Index?: string } | null;
+  patrolRouteGeometry?: [number, number][] | null;
 }
 
 const BENGALURU_BOUNDS = {
@@ -115,7 +116,7 @@ function fmtCount(n: number): string {
 
 export function HexMap({
   data, onHover, onClick, viewState, onViewStateChange, extraLayers,
-  selectedHour = 8, onHourChange, targetLocation,
+  selectedHour = 8, onHourChange, targetLocation, patrolRouteGeometry,
 }: HexMapProps) {
   const [viewMode, setViewMode] = useState<"hex" | "contour">("hex");
 
@@ -289,6 +290,24 @@ export function HexMap({
       );
     }
 
+    // === Patrol route geometry (MapMyIndia driving route) ===
+    // Rendered above hex/contour but below labels so it's visible without
+    // cluttering hotspot text.
+    if (patrolRouteGeometry && patrolRouteGeometry.length > 1) {
+      result.push(
+        new PathLayer<[number, number][]>({
+          id: "patrol-route-geometry",
+          data: [patrolRouteGeometry],
+          getPath: (d) => d,
+          getColor: [0, 191, 255, 180],
+          getWidth: 4,
+          widthUnits: "pixels",
+          rounded: true,
+          pickable: false,
+        }),
+      );
+    }
+
     // === Hotspot label layers, render on top in BOTH hex and contour views ===
 
     // Dot markers at each hotspot coordinate
@@ -452,6 +471,14 @@ export function HexMap({
           <span className="font-mono text-[9px] text-zinc-600">
             {hexData.length.toLocaleString()} hex
           </span>
+        </div>
+      )}
+
+      {/* MapMyIndia attribution badge — visible so judges see the integration */}
+      {patrolRouteGeometry && patrolRouteGeometry.length > 1 && (
+        <div className="pointer-events-none absolute bottom-8 right-4 z-10 flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/90 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 backdrop-blur-md">
+          <MapPin className="h-3 w-3 text-zinc-500" />
+          Routing: MapMyIndia
         </div>
       )}
 
