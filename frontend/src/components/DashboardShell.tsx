@@ -233,6 +233,8 @@ export function DashboardShell({
   const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
   const [targetLocation, setTargetLocation] = useState<{ lng: number; lat: number; h3Index?: string } | null>(null);
   const [clickedWaypoint, setClickedWaypoint] = useState<{ name: string; lng: number; lat: number } | null>(null);
+  const [highlightedHex, setHighlightedHex] = useState<string | null>(null);
+  const [highlightedWaypointName, setHighlightedWaypointName] = useState<string | null>(null);
   const selectedHexTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Feature 1: Filter state
@@ -289,9 +291,21 @@ export function DashboardShell({
       if (place_name) {
         setClickedWaypoint({ name: place_name, lng: center[0], lat: center[1] });
       }
+      // Compute the exact res-8 parent hex for hover tooltip name override
+      let exactHex: string | null = null;
+      if (h3_index) {
+        try {
+          const { cellToParent } = require("h3-js");
+          exactHex = cellToParent(h3_index, 8);
+        } catch {}
+      }
+      setHighlightedHex(exactHex);
+      setHighlightedWaypointName(place_name ?? null);
       selectedHexTimerRef.current = setTimeout(() => {
         setTargetLocation(null);
         setClickedWaypoint(null);
+        setHighlightedHex(null);
+        setHighlightedWaypointName(null);
       }, 3000);
     };
     window.addEventListener("clearlane:horizon-change", onHorizon);
@@ -616,6 +630,13 @@ export function DashboardShell({
           onHover={(info: PickingInfo) => {
             if (info.object) {
               const hexData = info.object as H3HexData;
+              // When a waypoint is highlighted and this hex is the one that was
+              // clicked, show the waypoint name from the panel in the tooltip
+              // instead of the hexData place_name.
+              const isHighlightedHex = highlightedHex !== null && hexData.hex === highlightedHex;
+              const placeName = isHighlightedHex && highlightedWaypointName
+                ? highlightedWaypointName
+                : hexData.properties?.place_name || hexData.hex.slice(0, 8);
               setHoverInfo({
                 object: {
                   type: "Feature",
@@ -624,7 +645,7 @@ export function DashboardShell({
                     ...hexData.properties,
                     violation_count: hexData.count,
                     primary_vehicle: hexData.properties?.primary_vehicle || "Mixed",
-                    place_name: hexData.properties?.place_name || hexData.hex.slice(0, 8),
+                    place_name: placeName,
                     center: hexData.center,
                   },
                 } as GeoJSONFeature,
