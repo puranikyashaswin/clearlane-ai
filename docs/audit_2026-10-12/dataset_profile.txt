@@ -1,0 +1,12 @@
+header: ['id', 'latitude', 'longitude', 'location', 'vehicle_number', 'vehicle_type', 'description', 'violation_type', 'offence_code', 'created_datetime', 'closed_datetime', 'modified_datetime', 'device_id', 'created_by_id', 'center_code', 'police_station', 'data_sent_to_scita', 'junction_name', 'action_taken_timestamp', 'data_sent_to_scita_timestamp', 'updated_vehicle_number', 'updated_vehicle_type', 'validation_status', 'validation_timestamp']
+csv_module_data_rows: 298450
+polars_rows(ignore_errors): 298450
+rows_with_lat_lng: 298450
+lat range 12.8026667 13.293684372967755 lng range 77.442553 77.771735
+created_datetime samples: ['2023-11-20 00:28:46+00', '2023-11-24 22:46:46+00', '2023-11-20 00:27:46+00'] suffixes: [{'created_datetime': '.680242+00', 'count': 1}, {'created_datetime': '.526372+00', 'count': 1}, {'created_datetime': '+00', 'count': 298445}, {'created_datetime': '.493726+00', 'count': 1}, {'created_datetime': '.977404+00', 'count': 1}]
+date range: 2023-11-09 19:11:46 2024-04-08 17:30:46 unparsed: 0
+hour histogram: {0: 21762, 1: 17155, 2: 24770, 3: 25709, 4: 29102, 5: 34085, 6: 26890, 7: 14608, 8: 8556, 9: 3145, 10: 518, 11: 577, 12: 219, 13: 56, 14: 16, 15: 66, 16: 416, 17: 818, 18: 1971, 19: 10713, 20: 11834, 21: 19763, 22: 22840, 23: 22861}
+vehicle_type n_unique 22 top [{'vehicle_type': 'SCOOTER', 'count': 94856}, {'vehicle_type': 'CAR', 'count': 88870}, {'vehicle_type': 'MOTOR CYCLE', 'count': 40811}, {'vehicle_type': 'PASSENGER AUTO', 'count': 37813}]
+violation_type n_unique 991 top [{'violation_type': '["WRONG PARKING"]', 'count': 138764}, {'violation_type': '["NO PARKING"]', 'count': 119576}, {'violation_type': '["PARKING IN A MAIN ROAD","WRONG PARKING"]', 'count': 9472}, {'violation_type': '["PARKING IN A MAIN ROAD","NO PARKING"]', 'count': 4818}]
+junction_name n_unique 170 top [{'junction_name': 'No Junction', 'count': 147880}, {'junction_name': 'BTP051 - Safina Plaza Junction', 'count': 15449}, {'junction_name': 'BTP082 - KR Market Junction', 'count': 11538}, {'junction_name': 'BTP040 - Elite Junction', 'count': 10718}]
+police_station n_unique 55 top [{'police_station': 'Upparpet', 'count': 34468}, {'police_station': 'Shivajinagar', 'count': 28044}, {'police_station': 'Malleshwaram', 'count': 22200}, {'police_station': 'HAL Old Airport', 'count': 20819}]

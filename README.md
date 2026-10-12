@@ -1,6 +1,6 @@
 # ClearLane AI
 
-Real-time dashboard for detecting and quantifying parking-induced congestion in Bengaluru, from 298,000 historical violation records.
+Dashboard for mapping parking-violation hotspots in Bengaluru and ranking them with a heuristic congestion proxy, built on 298,450 historical violation records (Nov 2023 to Apr 2024). It analyses historical data; it does not ingest live feeds.
 
 ---
 
@@ -16,7 +16,7 @@ The core challenges are spatial: violations happen at street level but congestio
 
 ### Detect Hotspots
 
-Every violation record (latitude, longitude) is indexed into **H3 hexagons at resolution 8** (roughly 500m per hex, a practical granularity for city-scale enforcement). The frontend displays these as an interactive hexagon map using deck.gl's `H3HexagonLayer`, with a **logarithmic color scale**:
+Every violation record (latitude, longitude) is indexed into **H3 hexagons at resolution 10** in the API (`backend/main.py`; average edge about 66 m, area about 0.015 km², 6,805 non-empty hexes on the full dataset). The offline `backend/engine.py` script that writes `hotspots.json` uses resolution 9. The frontend displays these as an interactive hexagon map using deck.gl's `H3HexagonLayer`, with a **logarithmic color scale**:
 
 ```
 t = log2(violation_count + 1) / log2(max_violation_count + 1)
@@ -69,9 +69,13 @@ The **Patrol Route Panel** (left sidebar, directly below global stats) calls `/a
       "top_violation_type": "WRONG PARKING" },
     ...
   ],
-  "total_impact": 54048.0
+  "total_impact": 61020.0
 }
 ```
+
+(Output of a local run on the full CSV, saved in `docs/audit_2026-10-12/api_patrol-route.json`.)
+
+What the ranking actually measures: `capacity_drop` hits its 0.8 cap once a hex has more than about 1,120 sqm of parked vehicles, which is true of all five top waypoints. For those hexes `estimated_delay_mins = 0.8 × 15 × peak_violations = 12 × peak_violations`, so the top-5 route is effectively a ranking by violation count in the peak-hour window. The "minutes" are a proxy score, not measured or validated delay; nothing in this repo compares them against traffic speed or travel-time data.
 
 Each waypoint is clickable. Clicking flies the map to that location (via `clearlane:pan-to-zone` custom event), letting an officer see the zone and route to it in Google Maps or Apple Maps via the export panel. This is the most direct answer to "targeted enforcement" in the problem statement.
 
@@ -87,7 +91,7 @@ Browser (Next.js 16 / deck.gl)
 FastAPI (polars / h3-js)
        │
        ▼
-CSV on disk (298K rows, downloaded at boot from DATASET_URL)
+CSV on disk (298,450 rows, downloaded at boot from DATASET_URL)
 ```
 
 **Frontend.** Next.js 16 (App Router, TypeScript 5, Tailwind CSS v4, React 19). The map is deck.gl 9.x with react-map-gl (Mapbox GL tiles). Analytics charts use Recharts. The splash screen and header animations use Framer Motion.
@@ -194,7 +198,7 @@ npm run start
 
 ## Dataset
 
-The dataset is the official hackathon-provided file: `jan to may police violation_anonymized791b166.csv`, containing approximately 298,450 rows of Bengaluru traffic violation records from January through May of the relevant year.
+The dataset is the official hackathon-provided file: `jan to may police violation_anonymized791b166.csv`, containing 298,450 rows of Bengaluru traffic violation records (counted on 2026-10-12 from the `v0.1-data` release asset, sha256 `6e4b7ad2…c656438`; all rows have latitude/longitude). Despite the "jan to may" filename, `created_datetime` runs from 2023-11-09 to 2024-04-08 and carries a `+00` (UTC) suffix. See `docs/audit_2026-10-12/`.
 
 Key columns used by the application:
 
@@ -223,6 +227,10 @@ The CSV is ~105 MB and not tracked in git. The backend downloads it automaticall
 **Deployed backend on Railway's free tier** may have cold-start delays of 10-20 seconds after periods of inactivity. The frontend handles this gracefully by falling back to demo data if the backend does not respond within 3 seconds.
 
 **The chat assistant** calls a hosted NVIDIA NIM endpoint (`meta/llama-3.1-8b-instruct`). It requires an API key and internet access. It is not a fine-tuned model and its answers are only as accurate as the context summary passed to it.
+
+**Peak-hour window and time zone.** `is_peak` uses hours 8-10 and 17-20 taken straight from `created_datetime`, which is labelled UTC. If those timestamps really are UTC, the window corresponds to roughly 13:30-16:30 and 22:30-02:30 IST rather than the Bengaluru rush hours. In the data, 12.6% of rows fall in the window. This has not been checked against the data provider.
+
+**`/api/context-summary` has hard-coded figures.** It returns `total_estimated_delay_hours: 6906` and can fall back to `total_hotspots: 2534`. A local run of `/api/stats` on the full CSV gives 6,171.2 delay hours and 6,805 hotspots. The chat assistant sees the hard-coded values.
 
 **Dark spot detection** identifies hexagons where enforcement data has high proportions of unvalidated, rejected, or unsent records (relative to total at that zone). This is a ratio-based heuristic, not a predictive model of enforcement failure.
 
